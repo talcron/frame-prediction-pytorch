@@ -271,45 +271,34 @@ class Discriminator(nn.Module):
 
         self.linear = nn.Linear(in_features=4, out_features=1, bias=True)
 
-        self.leakyrelu = nn.LeakyReLU(negative_slope=0.2, inplace=True)
+        self.leaky_relu = nn.LeakyReLU(negative_slope=0.2, inplace=True)
 
     def forward(self, x):
-        x = self.leakyrelu(self.ln1(self.conv1(x)))
-        x = self.leakyrelu(self.ln2(self.conv2(x)))
-        x = self.leakyrelu(self.ln3(self.conv3(x)))
-        x = self.leakyrelu(self.ln4(self.conv4(x)))
-        x = self.leakyrelu(self.conv5(x))
+        x = self.leaky_relu(self.ln1(self.conv1(x)))
+        x = self.leaky_relu(self.ln2(self.conv2(x)))
+        x = self.leaky_relu(self.ln3(self.conv3(x)))
+        x = self.leaky_relu(self.ln4(self.conv4(x)))
+        x = self.leaky_relu(self.conv5(x))
         x = torch.reshape(x, [1, -1])
         out = self.linear(x)
 
         return out
 
 
-# class Custom_Loss(nn.Module):
-#     """Must return a scalar variable"""
-#     def __init__(self):
-#         super(Custom_Loss, self).__init__()
-#
-#     def forward(self, outputs, labels):
-
-
-# Actually I think all we need is 2-3 nn.MSEloss instances w different weights
-criterion = nn.MSELoss()
-
-
 # Not exactly sure what type of initialization this is (looks like Xavier ??) but it's what the
 # paper uses
+def _init_conv3d(m):
+    fan_in = m.in_channels * 4 * 4 * 4
+    fan_out = m.out_channels * 2 * 2 * 2
+    std_val = 2. * (np.sqrt(3) / (fan_in + fan_out))
+    nn.init.uniform_(m.weight, a=-std_val, b=std_val)
+
+
 def init_weights(m):
     if type(m) == nn.Linear:
         nn.init.normal_(m.weight, mean=0.0, std=0.01)
         nn.init.zeros_(m.bias)
     elif type(m) == nn.ConvTranspose3d:
-        fan_in = m.in_channels * 4 * 4 * 4
-        fan_out = m.out_channels * 2 * 2 * 2
-        std_val = 2. * (np.sqrt(3) / (fan_in + fan_out))
-        nn.init.uniform_(m.weight, a=-std_val, b=std_val)
+        _init_conv3d(m)
     elif type(m) == nn.Conv3d:
-        fan_in = m.in_channels * 4 * 4 * 4
-        fan_out = m.out_channels * 2 * 2 * 2
-        std_val = 2. * (np.sqrt(3) / (fan_in + fan_out))
-        nn.init.uniform_(m.weight, a=-std_val, b=std_val)
+        _init_conv3d(m)

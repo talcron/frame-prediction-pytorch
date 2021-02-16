@@ -1,10 +1,13 @@
 import argparse
 import os
 
+import torch
 from torch.utils.data import DataLoader
 
 from data.dataloader import VideoDataset
 from model.improved_video_gan import ImprovedVideoGAN
+
+DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")  # sets device for model and PyTorch tensors
 
 
 def get_parser():
@@ -64,8 +67,13 @@ def main(args):
     if not os.path.isdir(args.save_dir):
         os.makedirs(args.save_dir)
 
-    dataset = VideoDataset(args.index_file)
-    dataloader = DataLoader(dataset, batch_size=args.batch_size, shuffle=True, num_workers=args.workers)
+    dataset = VideoDataset(args.index_file, device=DEVICE)
+    dataloader = DataLoader(
+        dataset,
+        batch_size=args.batch_size,
+        shuffle=True,
+        num_workers=args.workers,
+    )
     GAN = ImprovedVideoGAN(
         dataloader=dataloader,
         batch_size=args.batch_size,
@@ -74,6 +82,7 @@ def main(args):
         learning_rate=args.learning_rate,
         epoch_range=(args.start_epoch, args.epochs + args.start_epoch),
         critic_iterations=5)
+    GAN.to(DEVICE)
     GAN.train()
 
 
