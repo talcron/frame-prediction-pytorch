@@ -125,7 +125,7 @@ class ImprovedVideoGAN(object):
         Run optimization
 
         Args:
-            batch: a data batch
+            batch: batch of real videos
             which: "generator" or "discriminator"
 
         Returns:
@@ -134,40 +134,34 @@ class ImprovedVideoGAN(object):
         assert which in {GENERATOR, DISCRIMINATOR}
         # todo: implement the commented-out summary code
         # print("Setting up model...")
-        self.z_vec = torch.rand((self.batch_size, self.z_dim))
+        z_vec = torch.rand((self.batch_size, self.z_dim))
 
-        # tf.summary.histogram("z", self.z_vec)
-        self.videos_fake, self.generator_variables = self.generator(self.z_vec)
+        # tf.summary.histogram("z", z_vec)
+        fake_videos = self.generator(z_vec)
 
-        self.d_real = self.discriminator(batch)
-        self.d_fake = self.discriminator(self.videos_fake, reuse=True)
+        d_real = self.discriminator(batch)
+        d_fake = self.discriminator(fake_videos)
 
-        self.g_cost = -torch.mean(self.d_fake)
-        self.d_cost = -self.g_cost - torch.mean(self.d_real)
+        g_cost = -torch.mean(d_fake)
+        g_cost.backward()
+        d_cost = -g_cost - torch.mean(d_real)
 
-        # tf.summary.scalar("g_cost", self.g_cost)
-        # tf.summary.scalar("d_cost", self.d_cost)
+        # tf.summary.scalar("g_cost", g_cost)
+        # tf.summary.scalar("d_cost", d_cost)
 
         alpha = torch.rand(size=(self.batch_size, 1))
-        dim = self.num_frames * self.crop_size * self.crop_size * 3
+        interpolates = batch + (alpha * (fake_videos - batch))
+        d_hat: torch.Tensor = self.discriminator(interpolates)
 
-        vid = torch.reshape(batch, [self.batch_size, dim])
-        fake = torch.reshape(self.videos_fake, [self.batch_size, dim])
-        differences = fake - vid
-        interpolates = vid + (alpha * differences)
-        d_hat: torch.Tensor = self.discriminator(
-            torch.reshape(interpolates, [self.batch_size, self.num_frames, self.crop_size, self.crop_size, 3])
-        )
-        # todo: how do we compute this gradient in PyTorch???
-        gradients = tf.gradients(d_hat, [interpolates])[0]
+        d_hat.backward(torch.ones_like(d_hat))
+        gradients = interpolates.grad
         slopes = torch.sqrt(torch.sum(torch.square(gradients), dim=1))
         gradient_penalty = torch.mean((slopes - 1.) ** 2)
 
-        self.d_cost_final = self.d_cost + 10 * gradient_penalty
-        # tf.summary.scalar("d_cost_penalized", self.d_cost_final)
+        d_cost_final = d_cost + 10 * gradient_penalty
+        # tf.summary.scalar("d_cost_penalized", d_cost_final)
 
-        self.d_cost_final.backward()
-        self.g_cost.backward()
+        d_cost_final.backward()
 
         if which == DISCRIMINATOR:
             self.discriminator_optimizer.step()
@@ -188,7 +182,7 @@ class ImprovedVideoGAN(object):
     def get_feed_dict(self):
         # todo: use torch.randn
         batch_z = np.random.normal(0, 1.0, size=[self.batch_size, self.z_dim]).astype(np.float32)
-        feed_dict = {self.z_vec: batch_z}
+        feed_dict = {z_vec: batch_z}
         return feed_dict
 
 
