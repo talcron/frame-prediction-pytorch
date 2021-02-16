@@ -53,7 +53,8 @@ class VideoDataset(Dataset):
 
     def __getitem__(self, idx):
         fn = self.data[idx]
-        video = torch.tensor(self._read_video(fn)).to(self.device)
+        video = torch.from_numpy(self._read_video(fn)).to(self.device)
+        video = video.permute((0, 3, 1, 2))  # (frame, channels, height, width)
 
         video = (video / 127) - 1  # normalize to the range [-1, 1]
         label = self._label_from_path(fn)
