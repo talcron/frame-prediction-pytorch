@@ -1,0 +1,10 @@
+name: torch
+channels:
+  - default
+  - pytorch
+  - conda-forge
+dependencies:
+  - python 3.9.*
+  - pytorch
+  - torchvision
+  - scikit-video

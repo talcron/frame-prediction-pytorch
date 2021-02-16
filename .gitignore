@@ -1,8 +1,1 @@
-.idea/.gitignore
-.idea/285_video_pytorch.iml
-.idea/deployment.xml
-.idea/inspectionProfiles/profiles_settings.xml
-.idea/misc.xml
-.idea/modules.xml
-.idea/other.xml
-.idea/vcs.xml
+.idea/
