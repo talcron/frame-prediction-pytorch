@@ -96,84 +96,72 @@ class ImprovedVideoGAN(object):
             batch_iterator = iter(self.dataloader)
             for critic_itr in range(self.critic_iterations):
                 batch = next(batch_iterator)[0]
-                self.optimize_discriminator(batch)
+                self.optimize(batch, DISCRIMINATOR)
 
             batch = next(batch_iterator)
-            self.optimize_generator(batch)
+            self.optimize(batch, GENERATOR)
             # todo: print a summary
 
-    def optimize_discriminator(self, batch):
-        """
-        Optimize the discriminator only
-
-        Args:
-            batch: a data batch
-        """
-        return self._optimize(batch, DISCRIMINATOR)
-
-    def optimize_generator(self, batch):
-        """
-        Optimize the generator only
-
-        Args:
-            batch: a data batch
-        """
-        return self._optimize(batch, GENERATOR)
-
-    def _optimize(self, batch, which):
+    def optimize(self, batch, model_type):
         """
         Run optimization
 
         Args:
             batch: batch of real videos
-            which: "generator" or "discriminator"
+            model_type: "generator" or "discriminator"
 
         Returns:
             None
         """
-        assert which in {GENERATOR, DISCRIMINATOR}
+        assert model_type in {GENERATOR, DISCRIMINATOR}
         # todo: implement the commented-out summary code
-        print("Setting up model...")
         z_vec = torch.rand((self.batch_size, self.z_dim))
 
         # tf.summary.histogram("z", z_vec)
         fake_videos = self.generator(z_vec)
 
-        d_real = self.discriminator(batch)
-        d_fake = self.discriminator(fake_videos)
+        if model_type == GENERATOR:
+            self._optimize_generator(fake_videos)
+        elif model_type == DISCRIMINATOR:
+            self._optimize_discriminator(batch, fake_videos)
 
-        g_cost = -torch.mean(d_fake)
-        g_cost.backward()
-        d_cost = -g_cost - torch.mean(d_real)
+        # self.sample = sampleBatch(self.videos_fake, self.batch_size)
+        # self.summary_op = tf.summary.merge_all()
+
+    def _optimize_discriminator(self, batch, fake_videos):
+        d_fake = self.discriminator(fake_videos)
+        d_real = self.discriminator(batch)
+        d_cost = torch.mean(d_fake) - torch.mean(d_real)
 
         # tf.summary.scalar("g_cost", g_cost)
         # tf.summary.scalar("d_cost", d_cost)
 
         alpha = torch.rand(size=(self.batch_size, 1, 1, 1, 1))
         interpolates = batch + (alpha * (fake_videos - batch))
+        interpolates.retain_grad()
         d_hat: torch.Tensor = self.discriminator(interpolates)
+        d_hat.backward(torch.ones_like(d_hat), retain_graph=True)
 
-        d_hat.backward(torch.ones_like(d_hat))
         gradients = interpolates.grad
         slopes = torch.sqrt(torch.sum(torch.square(gradients), dim=1))
         gradient_penalty = torch.mean((slopes - 1.) ** 2)
-
         d_cost_final = d_cost + 10 * gradient_penalty
+
         # tf.summary.scalar("d_cost_penalized", d_cost_final)
 
         d_cost_final.backward()
+        self.discriminator_optimizer.step()
+        print(f'discriminator cost: {d_cost_final}')
+        self.discriminator_optimizer.zero_grad()
 
-        if which == DISCRIMINATOR:
-            self.discriminator_optimizer.step()
-            print(f'discriminator cost: {d_cost_final}')
-            self.discriminator_optimizer.zero_grad()
-        elif which == GENERATOR:
-            self.generator_optimizer.step()
-            print(f'generator cost: {g_cost}')
-            self.generator_optimizer.zero_grad()
+    def _optimize_generator(self, fake_videos):
+        d_fake = self.discriminator(fake_videos)
+        g_cost = -torch.mean(d_fake)
+        g_cost.backward()
 
-        # self.sample = sampleBatch(self.videos_fake, self.batch_size)
-        # self.summary_op = tf.summary.merge_all()
+        self.generator_optimizer.step()
+        print(f'generator cost: {g_cost}')
+        self.generator_optimizer.zero_grad()
 
 
 class Generator(nn.Module):
