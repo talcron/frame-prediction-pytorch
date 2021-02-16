@@ -1,22 +1,22 @@
 import numpy as np
-import torchvision.transforms as transforms
+import torch
 from skvideo.io import vread
 from torch.utils.data import Dataset
 
 DATASETS = {UCF101 := "UCF-101",
             UCF_SPORTS := "ucf_sports"}
+DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")  # sets device for model and PyTorch tensors
 
 
 class VideoDataset(Dataset):
 
-    def __init__(self, index_file, num_frames=32, shape=(64, 64), dataset=UCF101):
+    def __init__(self, index_file, num_frames=32, shape=(64, 64), dataset=UCF101, device=DEVICE):
         assert dataset in DATASETS, f"{dataset} not in {DATASETS}"
+        self.device = device
         self.dataset = dataset
         self.num_frames = num_frames
         self.shape = shape
         self.data = self._read_file(index_file)
-
-        self.transform = self._define_transformation()
 
     def stats(self):
         # todo: verify a consistent timebase between videos. The UCF videos are all 1:10
@@ -43,14 +43,6 @@ class VideoDataset(Dataset):
         return video
 
     @staticmethod
-    def _define_transformation():
-        to_tensor = transforms.ToTensor()
-
-        resnet_normalize = transforms.Normalize((0.485, 0.456, 0.406), (0.229, 0.224, 0.225))
-        standard_normalize = transforms.Normalize((0, 0, 0, 0), (1, 1, 1, 1))
-        return transforms.Compose([to_tensor, standard_normalize])
-
-    @staticmethod
     def _read_file(index_file):
         with open(index_file, 'r') as f:
             data = f.read().split('\n')[:-1]
@@ -61,9 +53,9 @@ class VideoDataset(Dataset):
 
     def __getitem__(self, idx):
         fn = self.data[idx]
-        video = self._read_video(fn)
+        video = torch.tensor(self._read_video(fn)).to(self.device)
 
-        video = self.transform(video)
+        video = (video / 127) - 1  # normalize to the range [-1, 1]
         label = self._label_from_path(fn)
         return video, label
 
