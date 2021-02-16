@@ -14,7 +14,7 @@ class TestDataloader(unittest.TestCase):
         for i in sample_indices:
             video, label = self.dataset[i]
             self.assertIsInstance(label, str)
-            self.assertEqual((32, 3, 64, 64), video.shape)
+            self.assertEqual((3, 32, 64, 64), video.shape)
             self.assertGreaterEqual(video.min(), -1.)
             self.assertLessEqual(video.max(), 1.)
 
