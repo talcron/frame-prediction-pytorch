@@ -79,7 +79,7 @@ def main(args):
         batch_size=args.batch_size,
         z_dim=args.zdim,
         beta1=args.beta1,
-        learning_rate=args.learning_rate,
+        learning_rate=args.lr,
         epoch_range=(args.start_epoch, args.epochs + args.start_epoch),
         critic_iterations=5)
     GAN.to(DEVICE)

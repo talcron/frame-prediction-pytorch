@@ -95,7 +95,7 @@ class ImprovedVideoGAN(object):
         for e in range(*self.epoch_range):
             batch_iterator = iter(self.dataloader)
             for critic_itr in range(self.critic_iterations):
-                batch = next(batch_iterator)
+                batch = next(batch_iterator)[0]
                 self.optimize_discriminator(batch)
 
             batch = next(batch_iterator)
@@ -133,7 +133,7 @@ class ImprovedVideoGAN(object):
         """
         assert which in {GENERATOR, DISCRIMINATOR}
         # todo: implement the commented-out summary code
-        # print("Setting up model...")
+        print("Setting up model...")
         z_vec = torch.rand((self.batch_size, self.z_dim))
 
         # tf.summary.histogram("z", z_vec)
@@ -149,7 +149,7 @@ class ImprovedVideoGAN(object):
         # tf.summary.scalar("g_cost", g_cost)
         # tf.summary.scalar("d_cost", d_cost)
 
-        alpha = torch.rand(size=(self.batch_size, 1))
+        alpha = torch.rand(size=(self.batch_size, 1, 1, 1, 1))
         interpolates = batch + (alpha * (fake_videos - batch))
         d_hat: torch.Tensor = self.discriminator(interpolates)
 
@@ -165,38 +165,33 @@ class ImprovedVideoGAN(object):
 
         if which == DISCRIMINATOR:
             self.discriminator_optimizer.step()
-            # print("\nTrainable variables for discriminator:")
-            # for var in self.discriminator_variables:
-            #     print(var.name)
+            print(f'discriminator cost: {d_cost_final}')
             self.discriminator_optimizer.zero_grad()
         elif which == GENERATOR:
             self.generator_optimizer.step()
-            # print("\nTrainable variables for generator:")
-            # for var in self.generator_variables:
-            #     print(var.name)
+            print(f'generator cost: {g_cost}')
             self.generator_optimizer.zero_grad()
 
         # self.sample = sampleBatch(self.videos_fake, self.batch_size)
         # self.summary_op = tf.summary.merge_all()
 
-    def get_feed_dict(self):
-        # todo: use torch.randn
-        batch_z = np.random.normal(0, 1.0, size=[self.batch_size, self.z_dim]).astype(np.float32)
-        feed_dict = {z_vec: batch_z}
-        return feed_dict
-
 
 class Generator(nn.Module):
-    """Generator for improved_video_gan model"""
+    """
+    Generator for improved_video_gan model
 
-    def __init__(self, z):
+    z is the dimension of the Gaussian noise input into the generator
+    the linear layer output is reshaped into 512 channels of 4x4 2-frame videos
+    Each conv layer then halves the # of channels while doubling the # of frames and spatial size
+
+    Args:
+        z_dim: the dimension of the encoded image
+    """
+
+    def __init__(self, z_dim):
         super(Generator, self).__init__()
-
-        # z is the dimension of the Gaussian noise input into the generator
-        # the linear layer output is reshaped into 512 channels of 4x4 2-frame videos
-        # Each conv layer then halves the # of channels while doubling the # of frames and spatial size
         # Linear Block
-        self.linear = nn.Linear(z, 512 * 4 * 4 * 2, bias=True)
+        self.linear = nn.Linear(z_dim, 512 * 4 * 4 * 2, bias=True)
         self.bn0 = nn.BatchNorm3d(512, affine=True)
 
         # Conv Block 1
@@ -273,7 +268,7 @@ class Discriminator(nn.Module):
         x = self.leaky_relu(self.ln3(self.conv3(x)))
         x = self.leaky_relu(self.ln4(self.conv4(x)))
         x = self.leaky_relu(self.conv5(x))
-        x = torch.reshape(x, [1, -1])
+        x = torch.reshape(x, [x.shape[0], -1])
         out = self.linear(x)
 
         return out
