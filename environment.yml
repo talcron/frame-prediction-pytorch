@@ -3,8 +3,10 @@ channels:
   - default
   - pytorch
   - conda-forge
+  - comet_ml
 dependencies:
   - python 3.9.*
   - pytorch
   - torchvision
   - scikit-video
+  - comet_ml

@@ -1,6 +1,7 @@
 import argparse
 import os
 
+from comet_ml import Experiment
 import torch
 from torch.utils.data import DataLoader
 
@@ -57,11 +58,15 @@ def get_parser():
                         help='Beta parameter for ADAM (default: 0.5)')
     parser.add_argument('--zdim', default=100, type=int,
                         help='Dimensionality of hidden features (default: 100)')
+    parser.add_argument('--exp-name', default='dev', type=str,
+                        help='The experiment name (default: deb)')
     return parser
 
 
 def main(args):
     out_dir = args.save_dir
+    experiment = Experiment()
+    experiment.add_tag(args.exp_name)
 
     # Check if Output Directory Exists
     if not os.path.isdir(args.save_dir):
@@ -76,12 +81,14 @@ def main(args):
     )
     GAN = ImprovedVideoGAN(
         dataloader=dataloader,
+        experiment=experiment,
+        epoch_range=(args.start_epoch, args.epochs + args.start_epoch),
         batch_size=args.batch_size,
+        learning_rate=args.lr,
         z_dim=args.zdim,
         beta1=args.beta1,
-        learning_rate=args.lr,
-        epoch_range=(args.start_epoch, args.epochs + args.start_epoch),
-        critic_iterations=5)
+        critic_iterations=5
+    )
     GAN.to(DEVICE)
     GAN.train()
 

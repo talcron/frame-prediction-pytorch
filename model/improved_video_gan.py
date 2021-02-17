@@ -11,6 +11,7 @@ BETA2 = 0.999
 class ImprovedVideoGAN(object):
     def __init__(self,
                  dataloader,
+                 experiment,
                  epoch_range=(0, 50),
                  batch_size=64,
                  num_frames=32,
@@ -18,7 +19,6 @@ class ImprovedVideoGAN(object):
                  learning_rate=0.0002,
                  z_dim=100,
                  beta1=0.5,
-                 alpha1=0.1,
                  critic_iterations=5):
         self.epoch_range = epoch_range
         self.dataloader: torch.utils.data.DataLoader = dataloader
@@ -29,13 +29,27 @@ class ImprovedVideoGAN(object):
         self.learning_rate = learning_rate
         self.z_dim = z_dim
         self.num_frames = num_frames
-        self.alpha1 = alpha1
 
         self.generator = self.get_generator()
         self.discriminator = self.get_discriminator()
 
         self.discriminator_optimizer = self._make_optimizer(self.discriminator)
         self.generator_optimizer = self._make_optimizer(self.generator)
+
+        self._experiment = experiment
+        self._log_parameters()
+
+    def _log_parameters(self):
+        self._experiment.log_parameters({
+            'epoch_range': self.epoch_range,
+            'batch_size': self.batch_size,
+            'num_frames': self.num_frames,
+            'crop_size': self.crop_size,
+            'learning_rate': self.learning_rate,
+            'z_dim': self.z_dim,
+            'beta1': self.beta1,
+            'critic_iterations': self.critic_iterations,
+        })
 
     def _make_optimizer(self, model):
         """
@@ -92,15 +106,15 @@ class ImprovedVideoGAN(object):
         """
         Main training loop. Run this to train the models.
         """
-        for e in range(*self.epoch_range):
-            batch_iterator = iter(self.dataloader)
-            for critic_itr in range(self.critic_iterations):
-                batch = next(batch_iterator)[0]
-                self.optimize(batch, DISCRIMINATOR)
-
-            batch = next(batch_iterator)
-            self.optimize(batch, GENERATOR)
-            # todo: print a summary
+        for epoch in range(*self.epoch_range):
+            self._experiment.set_epoch(epoch)
+            for step, batch in enumerate(self.dataloader):
+                self._experiment.set_step(step)
+                if (step + 1) % self.critic_iterations:
+                    self.optimize(batch[0], DISCRIMINATOR)
+                else:
+                    self.optimize(batch[0], GENERATOR)
+            self._experiment.log_epoch_end(epoch)
 
     def optimize(self, batch, model_type):
         """
@@ -114,10 +128,8 @@ class ImprovedVideoGAN(object):
             None
         """
         assert model_type in {GENERATOR, DISCRIMINATOR}
-        # todo: implement the commented-out summary code
         z_vec = torch.rand((self.batch_size, self.z_dim))
-
-        # tf.summary.histogram("z", z_vec)
+        self._experiment.log_histogram_3d(z_vec)
         fake_videos = self.generator(z_vec)
 
         if model_type == GENERATOR:
@@ -131,10 +143,11 @@ class ImprovedVideoGAN(object):
     def _optimize_discriminator(self, batch, fake_videos):
         d_fake = self.discriminator(fake_videos)
         d_real = self.discriminator(batch)
-        d_cost = torch.mean(d_fake) - torch.mean(d_real)
+        g_cost = -torch.mean(d_fake)
+        d_cost = -g_cost - torch.mean(d_real)
 
-        # tf.summary.scalar("g_cost", g_cost)
-        # tf.summary.scalar("d_cost", d_cost)
+        self._experiment.log_metric('g_cost', g_cost)
+        self._experiment.log_metric('d_cost', d_cost)
 
         alpha = torch.rand(size=(self.batch_size, 1, 1, 1, 1))
         interpolates = batch + (alpha * (fake_videos - batch))
@@ -144,14 +157,14 @@ class ImprovedVideoGAN(object):
 
         gradients = interpolates.grad
         slopes = torch.sqrt(torch.sum(torch.square(gradients), dim=1))
+        # noinspection PyTypeChecker
         gradient_penalty = torch.mean((slopes - 1.) ** 2)
         d_cost_final = d_cost + 10 * gradient_penalty
-
-        # tf.summary.scalar("d_cost_penalized", d_cost_final)
 
         d_cost_final.backward()
         self.discriminator_optimizer.step()
         print(f'discriminator cost: {d_cost_final}')
+        self._experiment.log_metric('d_cost_final', d_cost_final)
         self.discriminator_optimizer.zero_grad()
 
     def _optimize_generator(self, fake_videos):
@@ -161,6 +174,7 @@ class ImprovedVideoGAN(object):
 
         self.generator_optimizer.step()
         print(f'generator cost: {g_cost}')
+        self._experiment.log_metric('g_cost', g_cost)
         self.generator_optimizer.zero_grad()
 
 
