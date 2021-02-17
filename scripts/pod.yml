@@ -1,0 +1,82 @@
+# file: pod.yml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: {name}
+  namespace:
+  labels:
+    name: {name}
+    svcreg: "true"
+    preplabel: ""
+spec:
+  priorityClassName: "high"
+  containers:
+  - name: pod
+    env:
+      - name: NB_USER
+        value: {user}
+      - name: NB_UID
+        value: "52629"
+      - name: XDG_CACHE_HOME
+        value: "/tmp/xdg-cache"
+      - name: USER
+        value: {user}
+      - name: LOGNAME
+        value: {user}
+      - name: TERM
+        value: xterm
+      - name: TZ
+        value: "PST8PDT"
+      - name: SHELL
+        value: /bin/bash
+      - name: PATH
+        value: /usr/local/cuda/bin:/root/miniconda3/envs/torch/bin:/root/miniconda3/condabin:/opt/conda/envs/torch/bin:/root/miniconda3/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+      - name: NBGRADER_COURSEID
+        value: -none
+      - name: HOME
+        value: {working_dir}
+      - name: PREPLABEL
+        value: ""
+      - name: JUPYTER_TOKEN
+        value: 9dd8113863d1ae6c5c53435f9cf39cc4ecc29b977af076eaadcf576a81e85482
+      - name: LD_LIBRARY_PATH
+        value: "/usr/local/nvidia/lib64"
+      - name: https_proxy
+        value: http://web.ucsd.edu:3128
+      - name: http_proxy
+        value: http://web.ucsd.edu:3128
+      - name: KUBERNETES_NODE_NAME
+        valueFrom:
+          fieldRef:
+            fieldPath: spec.nodeName
+    image: ianpegg9/torch:latest  # Docker image defined above
+    args: {args}
+    workingDir: {working_dir}
+    ports:
+      - containerPort: 8888
+        protocol: TCP
+    volumeMounts:
+    - name: support
+      mountPath: /opt/k8s-support
+    - name: dsmlp-datasets
+      mountPath: /datasets
+    - name: dshm
+      mountPath: /dev/shm
+    resources:
+      limits:
+        memory: {memory}Gi
+        cpu: {cpus}
+        nvidia.com/gpu: {gpus}
+      requests:
+        memory: {memory}Gi
+        cpu: {cpus}
+        nvidia.com/gpu: {gpus}
+  volumes:
+  - name: support  
+    emptyDir: {{}}
+  - name: dsmlp-datasets  
+    persistentVolumeClaim:
+      claimName:  dsmlp-datasets
+  - name: dshm
+    emptyDir:
+      medium:  Memory
