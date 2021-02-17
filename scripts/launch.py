@@ -10,7 +10,6 @@ import subprocess
 import sys
 import time
 
-NAME = 'dev'
 OUTFILE = 'final.yml'
 USER_OPTS = {'ian': '/datasets/home/29/629/ipegg',
              'matheus': '/datasets/home/71/371/mgorski'}
@@ -37,19 +36,15 @@ if __name__ == '__main__':
     parser.add_argument('--user', type=str, required=True,
                         choices=USER_OPTS,
                         help="Choose a user to pick the home directory")
-    parser.add_argument('--name', type=str, help="Pod name")
+    parser.add_argument('--name', type=str, default='dev', help="Pod name (default: dev)")
     parser.add_argument('--memory', type=int, default=8, help="Memory in Gb (default 8)")
     parser.add_argument('--gpus', type=int, default=1, help="Number of GPUs (default 1)")
     parser.add_argument('--cpus', type=int, default=2, help="Number of CPUs (default 2)")
     parser.add_argument('--args', type=str, nargs='+', default=["sleep", "infinity"],
                         help="Arguments to be passed to bash (default: sleep infinity)")
     args = parser.parse_args()
+    name = args.name
     working_dir = USER_OPTS[args.user]
-
-    if args.name is not None:
-        name = args.name
-    else:
-        name = NAME
 
     with open('pod.yml', 'r') as f:
         config = f.read()
