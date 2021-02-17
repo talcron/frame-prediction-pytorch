@@ -1,3 +1,5 @@
+from contextlib import contextmanager
+
 import torch
 import torch.nn as nn
 import torch.utils.data
@@ -6,6 +8,27 @@ import numpy as np
 DISCRIMINATOR = 'discriminator'
 GENERATOR = 'generator'
 BETA2 = 0.999
+
+
+def no_grad(model: nn.Module):
+    """
+    A decorator that
+    Args:
+        model:
+
+    Returns:
+
+    """
+    def decorator_no_grad(func):
+        def wrapper_no_grad(*args, **kwargs):
+            model.requires_grad_(False)
+            retval = func(*args, **kwargs)
+            model.requires_grad_(True)
+            return retval
+
+        return wrapper_no_grad
+
+    return decorator_no_grad
 
 
 class ImprovedVideoGAN(object):
@@ -133,12 +156,11 @@ class ImprovedVideoGAN(object):
         fake_videos = self.generator(z_vec)
 
         if model_type == GENERATOR:
-            self._optimize_generator(fake_videos)
+            with self.discriminator.no_grad:
+                self._optimize_generator(fake_videos)
         elif model_type == DISCRIMINATOR:
-            self._optimize_discriminator(batch, fake_videos)
-
-        # self.sample = sampleBatch(self.videos_fake, self.batch_size)
-        # self.summary_op = tf.summary.merge_all()
+            with self.generator.no_grad:
+                self._optimize_discriminator(batch, fake_videos.detach())
 
     def _optimize_discriminator(self, batch, fake_videos):
         d_fake = self.discriminator(fake_videos)
@@ -151,9 +173,11 @@ class ImprovedVideoGAN(object):
 
         alpha = torch.rand(size=(self.batch_size, 1, 1, 1, 1))
         interpolates = batch + (alpha * (fake_videos - batch))
+        interpolates.requires_grad_(True)
         interpolates.retain_grad()
-        d_hat: torch.Tensor = self.discriminator(interpolates)
-        d_hat.backward(torch.ones_like(d_hat), retain_graph=True)
+        d_hat = self.discriminator(interpolates)
+        with self.discriminator.no_grad:
+            d_hat.backward(torch.ones_like(d_hat), retain_graph=True)
 
         gradients = interpolates.grad
         slopes = torch.sqrt(torch.sum(torch.square(gradients), dim=1))
@@ -178,7 +202,16 @@ class ImprovedVideoGAN(object):
         self.generator_optimizer.zero_grad()
 
 
-class Generator(nn.Module):
+class BaseGAN(nn.Module):
+    @property
+    @contextmanager
+    def no_grad(self):
+        self.requires_grad_(False)
+        yield
+        self.requires_grad_(True)
+
+
+class Generator(BaseGAN):
     """
     Generator for improved_video_gan model
 
@@ -235,7 +268,7 @@ class Generator(nn.Module):
         return out
 
 
-class Discriminator(nn.Module):
+class Discriminator(BaseGAN):
     """Discriminator for improved_video_gan model"""
 
     def __init__(self):
