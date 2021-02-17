@@ -60,12 +60,14 @@ def get_parser():
                         help='Dimensionality of hidden features (default: 100)')
     parser.add_argument('--exp-name', default='dev', type=str,
                         help='The experiment name (default: deb)')
+    parser.add_argument('--exp-disable', default=False, type=bool,
+                        help='Disable CometML (default: False)')
     return parser
 
 
 def main(args):
     out_dir = args.save_dir
-    experiment = Experiment()
+    experiment = Experiment(disabled=args.exp_disable)
     experiment.add_tag(args.exp_name)
 
     # Check if Output Directory Exists
