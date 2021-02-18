@@ -61,7 +61,7 @@ def get_parser():
     parser.add_argument('--exp-name', default='dev', type=str,
                         help='The experiment name (default: deb)')
     parser.add_argument('--exp-disable', default=False, type=bool,
-                        help='Disable CometML (default: False)')
+                        help='Disable CometML (default: False if switch is absent)')
     return parser
 
 

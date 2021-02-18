@@ -3,8 +3,10 @@ import torch
 from skvideo.io import vread
 from torch.utils.data import Dataset
 
-DATASETS = {UCF101 := "UCF-101",
-            UCF_SPORTS := "ucf_sports"}
+UCF101 = "UCF-101"
+UCF_SPORTS = "ucf_sports"
+DATASETS = {UCF101,
+            UCF_SPORTS}
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")  # sets device for model and PyTorch tensors
 
 

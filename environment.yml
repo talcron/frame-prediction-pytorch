@@ -2,11 +2,12 @@ name: torch
 channels:
   - default
   - pytorch
-  - conda-forge
   - comet_ml
+  - conda-forge
 dependencies:
-  - python 3.9.*
+  - python 3.8.*
   - pytorch
+  - cudatoolkit=10.1
   - torchvision
   - scikit-video
   - comet_ml
