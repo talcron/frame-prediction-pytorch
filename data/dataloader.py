@@ -7,14 +7,14 @@ UCF101 = "UCF-101"
 UCF_SPORTS = "ucf_sports"
 DATASETS = {UCF101,
             UCF_SPORTS}
-DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")  # sets device for model and PyTorch tensors
+# DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")  # sets device for model and PyTorch tensors
 
 
 class VideoDataset(Dataset):
 
-    def __init__(self, index_file, num_frames=32, shape=(64, 64), dataset=UCF101, device=DEVICE):
+    def __init__(self, index_file, num_frames=32, shape=(64, 64), dataset=UCF101):
         assert dataset in DATASETS, f"{dataset} not in {DATASETS}"
-        self.device = device
+        # self.device = device
         self.dataset = dataset
         self.num_frames = num_frames
         self.shape = shape
@@ -55,7 +55,7 @@ class VideoDataset(Dataset):
 
     def __getitem__(self, idx):
         fn = self.data[idx]
-        video = torch.from_numpy(self._read_video(fn)).to(self.device)
+        video = torch.from_numpy(self._read_video(fn))
         video = video.permute((3, 0, 1, 2))  # (frame, channels, height, width)
 
         video = (video / 127.) - 1.  # normalize to the range [-1, 1]

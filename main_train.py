@@ -14,7 +14,7 @@ def get_parser():
     parser = argparse.ArgumentParser(description='VideoGAN')
     parser.add_argument('-j', '--workers', default=0, type=int, metavar='N',
                         help='number of data loading workers (default: 0)')
-    parser.add_argument('--gpu', default='0,1', help='index of gpus to use')
+    parser.add_argument('--num-gpu', default=1, type=int, help='number of GPUs to use')
     parser.add_argument('--epochs', default=40, type=int, metavar='N',
                         help='number of total epochs to run')
     parser.add_argument('--arch', metavar='ARCH', default='basic_fcn', type=str,
@@ -72,7 +72,7 @@ def main(args):
     if not os.path.isdir(args.save_dir):
         os.makedirs(args.save_dir)
 
-    dataset = VideoDataset(args.index_file, device=DEVICE)
+    dataset = VideoDataset(args.index_file)
     dataloader = DataLoader(
         dataset,
         batch_size=args.batch_size,
@@ -83,6 +83,7 @@ def main(args):
         dataloader=dataloader,
         experiment=experiment,
         device=DEVICE,
+        num_gpu=args.num_gpu,
         epoch_range=(args.start_epoch, args.epochs + args.start_epoch),
         batch_size=args.batch_size,
         learning_rate=args.lr,

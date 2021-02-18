@@ -37,6 +37,7 @@ class ImprovedVideoGAN(object):
                  dataloader,
                  experiment,
                  device=DEVICE,
+                 num_gpu=1,
                  epoch_range=(0, 50),
                  batch_size=64,
                  num_frames=32,
@@ -46,6 +47,7 @@ class ImprovedVideoGAN(object):
                  beta1=0.5,
                  critic_iterations=5):
         self.device = device
+        self.num_gpu = num_gpu
         self.epoch_range = epoch_range
         self.dataloader: torch.utils.data.DataLoader = dataloader
         self.critic_iterations = critic_iterations
@@ -88,14 +90,15 @@ class ImprovedVideoGAN(object):
             an optimizer
         """
         return torch.optim.Adam(
-            model.parameters(),
+            filter(lambda p: p.requires_grad, model.parameters()),
             lr=self.learning_rate,
             betas=(self.beta1, BETA2),
         )
 
     def to(self, device):
         """
-        Moves generator and discriminator models to the specified device and updates model's device
+        Moves generator and discriminator models to the specified device, updates model's device,
+        and starts data parallelism
 
         Args:
             device: device to move tensors to
@@ -104,8 +107,8 @@ class ImprovedVideoGAN(object):
             None
         """
         self.device = device
-        self.generator.to(device)
-        self.discriminator.to(device)
+        self.generator = torch.nn.DataParallel(self.generator, device_ids=range(self.num_gpu)).to(device)
+        self.discriminator = torch.nn.DataParallel(self.discriminator, device_ids=range(self.num_gpu)).to(device)
 
     def get_generator(self):
         """
