@@ -58,7 +58,7 @@ class VideoDataset(Dataset):
         video = torch.from_numpy(self._read_video(fn)).to(self.device)
         video = video.permute((3, 0, 1, 2))  # (frame, channels, height, width)
 
-        video = (video / 127) - 1  # normalize to the range [-1, 1]
+        video = (video / 127.) - 1.  # normalize to the range [-1, 1]
         label = self._label_from_path(fn)
         return video, label
 

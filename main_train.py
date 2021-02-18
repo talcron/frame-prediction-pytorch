@@ -8,14 +8,12 @@ from torch.utils.data import DataLoader
 from data.dataloader import VideoDataset
 from model.improved_video_gan import ImprovedVideoGAN
 
-DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")  # sets device for model and PyTorch tensors
-
 
 def get_parser():
     global parser
     parser = argparse.ArgumentParser(description='VideoGAN')
-    parser.add_argument('-j', '--workers', default=8, type=int, metavar='N',
-                        help='number of data loading workers (default: 8)')
+    parser.add_argument('-j', '--workers', default=0, type=int, metavar='N',
+                        help='number of data loading workers (default: 0)')
     parser.add_argument('--gpu', default='0,1', help='index of gpus to use')
     parser.add_argument('--epochs', default=40, type=int, metavar='N',
                         help='number of total epochs to run')
@@ -60,7 +58,7 @@ def get_parser():
                         help='Dimensionality of hidden features (default: 100)')
     parser.add_argument('--exp-name', default='dev', type=str,
                         help='The experiment name (default: deb)')
-    parser.add_argument('--exp-disable', default=False, type=bool,
+    parser.add_argument('--exp-disable', default=False, action='store_true',
                         help='Disable CometML (default: False if switch is absent)')
     return parser
 
@@ -84,6 +82,7 @@ def main(args):
     GAN = ImprovedVideoGAN(
         dataloader=dataloader,
         experiment=experiment,
+        device=DEVICE,
         epoch_range=(args.start_epoch, args.epochs + args.start_epoch),
         batch_size=args.batch_size,
         learning_rate=args.lr,
@@ -96,5 +95,8 @@ def main(args):
 
 
 if __name__ == '__main__':
+    DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")  # sets device for model and PyTorch tensors
+
+    # torch.multiprocessing.set_start_method('spawn')
     parser = get_parser()
     main(parser.parse_args())

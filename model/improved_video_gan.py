@@ -8,6 +8,7 @@ import numpy as np
 DISCRIMINATOR = 'discriminator'
 GENERATOR = 'generator'
 BETA2 = 0.999
+DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")  # sets device for model and PyTorch tensors
 
 
 def no_grad(model: nn.Module):
@@ -35,6 +36,7 @@ class ImprovedVideoGAN(object):
     def __init__(self,
                  dataloader,
                  experiment,
+                 device=DEVICE,
                  epoch_range=(0, 50),
                  batch_size=64,
                  num_frames=32,
@@ -43,6 +45,7 @@ class ImprovedVideoGAN(object):
                  z_dim=100,
                  beta1=0.5,
                  critic_iterations=5):
+        self.device = device
         self.epoch_range = epoch_range
         self.dataloader: torch.utils.data.DataLoader = dataloader
         self.critic_iterations = critic_iterations
@@ -92,7 +95,7 @@ class ImprovedVideoGAN(object):
 
     def to(self, device):
         """
-        Moves generator and discriminator models to the specified device.
+        Moves generator and discriminator models to the specified device and updates model's device
 
         Args:
             device: device to move tensors to
@@ -100,6 +103,7 @@ class ImprovedVideoGAN(object):
         Returns:
             None
         """
+        self.device = device
         self.generator.to(device)
         self.discriminator.to(device)
 
@@ -151,8 +155,7 @@ class ImprovedVideoGAN(object):
             None
         """
         assert model_type in {GENERATOR, DISCRIMINATOR}
-        z_vec = torch.rand((self.batch_size, self.z_dim))
-        self._experiment.log_histogram_3d(z_vec)
+        z_vec = torch.rand((self.batch_size, self.z_dim), device=self.device)
         fake_videos = self.generator(z_vec)
 
         if model_type == GENERATOR:
@@ -171,7 +174,7 @@ class ImprovedVideoGAN(object):
         self._experiment.log_metric('g_cost', g_cost)
         self._experiment.log_metric('d_cost', d_cost)
 
-        alpha = torch.rand(size=(self.batch_size, 1, 1, 1, 1))
+        alpha = torch.rand(size=(self.batch_size, 1, 1, 1, 1), device=self.device)
         interpolates = batch + (alpha * (fake_videos - batch))
         interpolates.requires_grad_(True)
         interpolates.retain_grad()
