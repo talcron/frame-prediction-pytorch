@@ -5,6 +5,8 @@ import torch.nn as nn
 import torch.utils.data
 import numpy as np
 
+GRADIENT_MULTIPLIER = 10.
+
 DISCRIMINATOR = 'discriminator'
 GENERATOR = 'generator'
 BETA2 = 0.999
@@ -186,7 +188,7 @@ class ImprovedVideoGAN(object):
         slopes = torch.sqrt(torch.sum(torch.square(gradients), dim=1))
         # noinspection PyTypeChecker
         gradient_penalty = torch.mean((slopes - 1.) ** 2)
-        d_cost_final = d_cost + 10 * gradient_penalty
+        d_cost_final = d_cost + GRADIENT_MULTIPLIER * gradient_penalty
 
         d_cost_final.backward()
         self.discriminator_optimizer.step()
