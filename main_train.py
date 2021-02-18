@@ -98,6 +98,5 @@ def main(args):
 if __name__ == '__main__':
     DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")  # sets device for model and PyTorch tensors
 
-    # torch.multiprocessing.set_start_method('spawn')
     parser = get_parser()
     main(parser.parse_args())
