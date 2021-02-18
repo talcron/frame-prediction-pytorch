@@ -1,12 +1,14 @@
-FROM pytorch/pytorch:1.7.1-cuda11.0-cudnn8-runtime
+FROM pytorch/pytorch:1.6.0-cuda10.1-cudnn7-runtime
 ENV DEBIAN_FRONTEND=noninteractive
 ENV TZ=America/Los_Angeles
+RUN apt-get update
+RUN apt-get upgrade -y
 RUN apt-get update
 
 # Setup basic tools
 RUN apt-get install -y apt-utils
-RUN apt-get upgrade -y
 RUN apt-get install -y libsm6 libxext6 libxrender-dev libgl1-mesa-glx vim git wget sudo psmisc locales cmake htop pylint less tmux
+RUN apt-get install -y nvidia-cuda-toolkit
 RUN apt-get install -y ffmpeg pciutils ssh openssh-server
 RUN locale-gen en_US.UTF-8
 
