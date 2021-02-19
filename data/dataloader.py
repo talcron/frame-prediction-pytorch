@@ -1,3 +1,5 @@
+from functools import lru_cache
+
 import numpy as np
 import torch
 from skvideo.io import vread
@@ -12,13 +14,35 @@ DATASETS = {UCF101,
 
 class VideoDataset(Dataset):
 
-    def __init__(self, index_file, num_frames=32, shape=(64, 64), dataset=UCF101):
+    def __init__(self, index_file, num_frames=32, shape=(64, 64), dataset=UCF101, cache_dataset=False):
+        """
+
+        Args:
+            index_file: Path to the text file where each line has a file path to a video
+            num_frames: The number of frames to load per video
+            shape: The frame shape. Much match video encoding
+            dataset: The dataset type
+            cache_dataset: if true, store the uint8 videos in memory.
+        """
         assert dataset in DATASETS, f"{dataset} not in {DATASETS}"
-        # self.device = device
         self.dataset = dataset
         self.num_frames = num_frames
         self.shape = shape
+        self.keep_in_memory = cache_dataset
         self.data = self._read_file(index_file)
+
+        self._read_video = self._get_read_video_func(cache_dataset)
+
+    @staticmethod
+    def _get_read_video_func(keep_in_memory):
+        def _read_video(fn):
+            video = vread(fn, inputdict={'-s': '64x64'}, num_frames=32)
+            return video
+
+        if keep_in_memory:
+            return lru_cache()(_read_video)
+        else:
+            return _read_video
 
     def stats(self):
         # todo: verify a consistent timebase between videos. The UCF videos are all 1:10
@@ -37,12 +61,6 @@ class VideoDataset(Dataset):
             print("{} | max: {} | min: {}".format(k, v.max(), v.min()))
 
         return stats
-
-    @staticmethod
-    def _read_video(fn):
-        # noinspection PyTypeChecker
-        video = vread(fn, inputdict={'-s': '64x64'}, num_frames=32)
-        return video
 
     @staticmethod
     def _read_file(index_file):
