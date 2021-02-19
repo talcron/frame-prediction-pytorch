@@ -138,12 +138,13 @@ class ImprovedVideoGAN(object):
         """
         for epoch in range(*self.epoch_range):
             self._experiment.set_epoch(epoch)
-            for step, batch in enumerate(self.dataloader):
+            for step, (batch, lbl) in enumerate(self.dataloader):
                 self._experiment.set_step(step)
+                batch = batch.to(self.device)
                 if (step + 1) % self.critic_iterations:
-                    self.optimize(batch[0], DISCRIMINATOR)
+                    self.optimize(batch, DISCRIMINATOR)
                 else:
-                    self.optimize(batch[0], GENERATOR)
+                    self.optimize(batch, GENERATOR)
             self._experiment.log_epoch_end(epoch)
 
     def optimize(self, batch, model_type):
@@ -162,13 +163,17 @@ class ImprovedVideoGAN(object):
         fake_videos = self.generator(z_vec)
 
         if model_type == GENERATOR:
-            with self.discriminator.no_grad:
-                self._optimize_generator(fake_videos)
+            self.discriminator.requires_grad = False
+            self._optimize_generator(fake_videos)
+            self.discriminator.requires_grad = True
         elif model_type == DISCRIMINATOR:
-            with self.generator.no_grad:
-                self._optimize_discriminator(batch, fake_videos.detach())
-
+            self.generator.requires_grad = False
+            self._optimize_discriminator(batch, fake_videos.detach())
+            self.generator.requires_grad = True
     def _optimize_discriminator(self, batch, fake_videos):
+
+        self.discriminator.zero_grad()
+
         d_fake = self.discriminator(fake_videos)
         d_real = self.discriminator(batch)
         g_cost = -torch.mean(d_fake)
@@ -182,8 +187,10 @@ class ImprovedVideoGAN(object):
         interpolates.requires_grad_(True)
         interpolates.retain_grad()
         d_hat = self.discriminator(interpolates)
-        with self.discriminator.no_grad:
-            d_hat.backward(torch.ones_like(d_hat), retain_graph=True)
+
+        self.discriminator.requires_grad = False
+        d_hat.backward(torch.ones_like(d_hat), retain_graph=True)
+        self.discriminator.requires_grad = True
 
         gradients = interpolates.grad
         slopes = torch.sqrt(torch.sum(torch.square(gradients), dim=1))
@@ -198,6 +205,9 @@ class ImprovedVideoGAN(object):
         self.discriminator_optimizer.zero_grad()
 
     def _optimize_generator(self, fake_videos):
+
+        self.generator.zero_grad()
+
         d_fake = self.discriminator(fake_videos)
         g_cost = -torch.mean(d_fake)
         g_cost.backward()
@@ -208,16 +218,18 @@ class ImprovedVideoGAN(object):
         self.generator_optimizer.zero_grad()
 
 
-class BaseGAN(nn.Module):
-    @property
-    @contextmanager
-    def no_grad(self):
-        self.requires_grad_(False)
-        yield
-        self.requires_grad_(True)
+# class BaseGAN(nn.Module):
+#     @property
+#     @contextmanager
+#     def no_grad(self):
+#         self.requires_grad_(False)
+#         yield
+#         self.requires_grad_(True)
 
 
-class Generator(BaseGAN):
+
+
+class Generator(nn.Module):
     """
     Generator for improved_video_gan model
 
@@ -274,7 +286,7 @@ class Generator(BaseGAN):
         return out
 
 
-class Discriminator(BaseGAN):
+class Discriminator(nn.Module):
     """Discriminator for improved_video_gan model"""
 
     def __init__(self):

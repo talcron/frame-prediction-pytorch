@@ -72,7 +72,7 @@ def main(args):
     if not os.path.isdir(args.save_dir):
         os.makedirs(args.save_dir)
 
-    dataset = VideoDataset(args.index_file)
+    dataset = VideoDataset(os.path.join(args.root_dir, args.index_file))
     dataloader = DataLoader(
         dataset,
         batch_size=args.batch_size,
