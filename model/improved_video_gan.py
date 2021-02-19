@@ -1,12 +1,14 @@
 from contextlib import contextmanager
+import os
 
 import torch
 import torch.nn as nn
 import torch.utils.data
 import numpy as np
 
+CHECKPOINT_FILENAME = 'checkpoint.model'
+SAVE_INTERVAL = 1
 GRADIENT_MULTIPLIER = 10.
-
 DISCRIMINATOR = 'discriminator'
 GENERATOR = 'generator'
 BETA2 = 0.999
@@ -22,6 +24,7 @@ def no_grad(model: nn.Module):
     Returns:
 
     """
+
     def decorator_no_grad(func):
         def wrapper_no_grad(*args, **kwargs):
             model.requires_grad_(False)
@@ -35,20 +38,24 @@ def no_grad(model: nn.Module):
 
 
 class ImprovedVideoGAN(object):
-    def __init__(self,
-                 dataloader,
-                 experiment,
-                 device=DEVICE,
-                 epoch_range=(0, 50),
-                 batch_size=64,
-                 num_frames=32,
-                 crop_size=64,
-                 learning_rate=0.0002,
-                 z_dim=100,
-                 beta1=0.5,
-                 critic_iterations=5):
+    def __init__(
+            self,
+            dataloader,
+            experiment,
+            device=DEVICE,
+            n_epochs=50,
+            batch_size=64,
+            num_frames=32,
+            crop_size=64,
+            learning_rate=0.0002,
+            z_dim=100,
+            beta1=0.5,
+            critic_iterations=5,
+            out_dir='experiments'
+    ):
+        self.out_dir = out_dir
         self.device = device
-        self.epoch_range = epoch_range
+        self.n_epochs = n_epochs
         self.dataloader: torch.utils.data.DataLoader = dataloader
         self.critic_iterations = critic_iterations
         self.crop_size = crop_size
@@ -58,18 +65,22 @@ class ImprovedVideoGAN(object):
         self.z_dim = z_dim
         self.num_frames = num_frames
 
+        self.epoch = 0
+        self.checkpoint_file = os.path.join(self.out_dir, CHECKPOINT_FILENAME)
+
         self.generator = self.get_generator()
         self.discriminator = self.get_discriminator()
 
         self.discriminator_optimizer = self._make_optimizer(self.discriminator)
         self.generator_optimizer = self._make_optimizer(self.generator)
+        self.to(device)
 
         self._experiment = experiment
         self._log_parameters()
 
     def _log_parameters(self):
         self._experiment.log_parameters({
-            'epoch_range': self.epoch_range,
+            'epoch_range': self.n_epochs,
             'batch_size': self.batch_size,
             'num_frames': self.num_frames,
             'crop_size': self.crop_size,
@@ -135,7 +146,8 @@ class ImprovedVideoGAN(object):
         """
         Main training loop. Run this to train the models.
         """
-        for epoch in range(*self.epoch_range):
+        for self.epoch in range(self.epoch, self.epoch + self.n_epochs):
+            epoch = self.epoch
             self._experiment.set_epoch(epoch)
             for step, batch in enumerate(self.dataloader):
                 self._experiment.set_step(step)
@@ -144,6 +156,48 @@ class ImprovedVideoGAN(object):
                 else:
                     self.optimize(batch[0], GENERATOR)
             self._experiment.log_epoch_end(epoch)
+            if (epoch + 1) % SAVE_INTERVAL:
+                self.save()
+        self.save()
+        self.log_model()
+
+    def log_model(self):
+        """
+        Log the saved models to CometML
+        """
+        if not os.path.exists(self.checkpoint_file):
+            raise FileNotFoundError(f'{self.checkpoint_file} file not found')
+        self._experiment.log_model('GAN', self.checkpoint_file)
+
+    def save(self):
+        """
+        Save model checkpoints
+        """
+        torch.save({
+            'epoch': self.epoch,
+            'generator_state_dict': self.generator.state_dict(),
+            'discriminator_state_dict': self.discriminator.state_dict(),
+            'generator_optimizer_state_dict': self.generator_optimizer.state_dict(),
+            'discriminator_optimizer_state_dict': self.discriminator_optimizer.state_dict(),
+        }, self.checkpoint_file)
+
+    def load(self, checkpoint_path: str):
+        """
+        Load the optimizer and model state dictionaries from model_dir
+
+        Args:
+            checkpoint_path: filepath of the checkpoint
+
+        Returns:
+            None
+        """
+        assert os.path.exists(checkpoint_path), f'file {checkpoint_path} does not exist'
+        checkpoint = torch.load(checkpoint_path)
+        self.epoch = checkpoint['epoch']
+        self.generator.load_state_dict(checkpoint['generator_state_dict'])
+        self.discriminator.load_state_dict(checkpoint['discriminator_state_dict'])
+        self.generator_optimizer.load_state_dict(checkpoint['generator_optimizer_state_dict'])
+        self.discriminator_optimizer.load_state_dict(checkpoint['discriminator_state_dict'])
 
     def optimize(self, batch, model_type):
         """

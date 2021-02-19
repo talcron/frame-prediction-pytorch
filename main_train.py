@@ -19,8 +19,6 @@ def get_parser():
                         help='number of total epochs to run')
     parser.add_argument('--arch', metavar='ARCH', default='basic_fcn', type=str,
                         help='model architecture: ' + ' (default: basic_fcn)')
-    parser.add_argument('--start-epoch', default=0, type=int, metavar='N',
-                        help='manual epoch number (useful on restarts)')
     parser.add_argument('-b', '--batch-size', default=64, type=int,
                         metavar='N', help='mini-batch size (default: 64)')
     parser.add_argument('--lr', '--learning-rate', default=0.0001, type=float,
@@ -60,6 +58,7 @@ def get_parser():
                         help='The experiment name (default: deb)')
     parser.add_argument('--exp-disable', default=False, action='store_true',
                         help='Disable CometML (default: False if switch is absent)')
+
     return parser
 
 
@@ -83,14 +82,17 @@ def main(args):
         dataloader=dataloader,
         experiment=experiment,
         device=DEVICE,
-        epoch_range=(args.start_epoch, args.epochs + args.start_epoch),
+        n_epochs=args.epochs,
         batch_size=args.batch_size,
         learning_rate=args.lr,
         z_dim=args.zdim,
         beta1=args.beta1,
         critic_iterations=5
     )
-    GAN.to(DEVICE)
+
+    if args.resume:
+        GAN.load(args.resume)
+
     GAN.train()
 
 
