@@ -65,9 +65,9 @@ def get_parser():
 
 
 def main(args):
-    out_dir = args.save_dir
     experiment = Experiment(disabled=args.exp_disable)
     experiment.add_tag(args.exp_name)
+    assert os.path.exists(args.save_dir), f'save-dir {args.save_dir} does not exist'
 
     # Check if Output Directory Exists
     if not os.path.isdir(args.save_dir):
