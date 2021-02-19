@@ -1,9 +1,7 @@
-from contextlib import contextmanager
-
+import numpy as np
 import torch
 import torch.nn as nn
 import torch.utils.data
-import numpy as np
 
 GRADIENT_MULTIPLIER = 10.
 
@@ -22,6 +20,7 @@ def no_grad(model: nn.Module):
     Returns:
 
     """
+
     def decorator_no_grad(func):
         def wrapper_no_grad(*args, **kwargs):
             model.requires_grad_(False)
@@ -172,6 +171,7 @@ class ImprovedVideoGAN(object):
             self.generator.requires_grad = False
             self._optimize_discriminator(batch, fake_videos.detach())
             self.generator.requires_grad = True
+
     def _optimize_discriminator(self, batch, fake_videos):
 
         self.discriminator.zero_grad()
@@ -218,17 +218,6 @@ class ImprovedVideoGAN(object):
         print(f'generator cost: {g_cost}')
         self._experiment.log_metric('g_cost', g_cost)
         self.generator_optimizer.zero_grad()
-
-
-# class BaseGAN(nn.Module):
-#     @property
-#     @contextmanager
-#     def no_grad(self):
-#         self.requires_grad_(False)
-#         yield
-#         self.requires_grad_(True)
-
-
 
 
 class Generator(nn.Module):
