@@ -44,6 +44,7 @@ class ImprovedVideoGAN(object):
         self.z_dim = z_dim
         self.num_frames = num_frames
 
+        self.step = 0
         self.epoch = 0
         self.checkpoint_file = os.path.join(self.out_dir, CHECKPOINT_FILENAME)
 
@@ -130,7 +131,7 @@ class ImprovedVideoGAN(object):
         for epoch in range(self.epoch, self.epoch + self.n_epochs):
             self._experiment.set_epoch(epoch)
             for step, (batch, lbl) in enumerate(self.dataloader):
-                self._experiment.set_step(step)
+                self._increment_total_step()
                 batch = batch.to(self.device)
                 if (step + 1) % self.critic_iterations:
                     self.optimize(batch, DISCRIMINATOR)
@@ -141,6 +142,13 @@ class ImprovedVideoGAN(object):
                 self.save()
         self.save()
         self.log_model()
+
+    def _increment_total_step(self):
+        """
+        Increment and log the total steps for Comet
+        """
+        self._experiment.set_step(self.step)
+        self.step += 1
 
     def log_model(self):
         """
