@@ -58,6 +58,8 @@ def get_parser():
                         help='The experiment name (default: deb)')
     parser.add_argument('--exp-disable', default=False, action='store_true',
                         help='Disable CometML (default: False if switch is absent)')
+    parser.add_argument('--cache-dataset', default=False, action='store_true',
+                        help='Keep all data in memory (default: False if switch is absent)')
 
     return parser
 
@@ -71,7 +73,10 @@ def main(args):
     if not os.path.isdir(args.save_dir):
         os.makedirs(args.save_dir)
 
-    dataset = VideoDataset(args.index_file, device=DEVICE)
+    if args.cache_dataset and args.workers > 0:
+        ResourceWarning("You are using multiple workers and keeping data in memory, this will multiply memory usage"
+                        "by the number of workers.")
+    dataset = VideoDataset(args.index_file, device=DEVICE, cache_dataset=args.cache_dataset)
     dataloader = DataLoader(
         dataset,
         batch_size=args.batch_size,
