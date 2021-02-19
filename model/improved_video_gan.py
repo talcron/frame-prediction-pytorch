@@ -176,7 +176,7 @@ class ImprovedVideoGAN(object):
         self._experiment.log_metric('g_cost', g_cost)
         self._experiment.log_metric('d_cost', d_cost)
 
-        alpha = torch.rand(size=(self.batch_size, 1, 1, 1, 1), device=self.device)
+        alpha = torch.rand(size=(batch.shape[0], 1, 1, 1, 1), device=self.device)
         interpolates = batch + (alpha * (fake_videos - batch))
         interpolates.requires_grad_(True)
         interpolates.retain_grad()
