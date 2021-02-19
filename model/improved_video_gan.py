@@ -5,6 +5,8 @@ import torch.nn as nn
 import torch.utils.data
 import numpy as np
 
+GRADIENT_MULTIPLIER = 10.
+
 DISCRIMINATOR = 'discriminator'
 GENERATOR = 'generator'
 BETA2 = 0.999
@@ -182,7 +184,7 @@ class ImprovedVideoGAN(object):
         self._experiment.log_metric('g_cost', g_cost)
         self._experiment.log_metric('d_cost', d_cost)
 
-        alpha = torch.rand(size=(self.batch_size, 1, 1, 1, 1), device=self.device)
+        alpha = torch.rand(size=(batch.shape[0], 1, 1, 1, 1), device=self.device)
         interpolates = batch + (alpha * (fake_videos - batch))
         interpolates.requires_grad_(True)
         interpolates.retain_grad()
@@ -196,7 +198,7 @@ class ImprovedVideoGAN(object):
         slopes = torch.sqrt(torch.sum(torch.square(gradients), dim=1))
         # noinspection PyTypeChecker
         gradient_penalty = torch.mean((slopes - 1.) ** 2)
-        d_cost_final = d_cost + 10 * gradient_penalty
+        d_cost_final = d_cost + GRADIENT_MULTIPLIER * gradient_penalty
 
         d_cost_final.backward()
         self.discriminator_optimizer.step()
