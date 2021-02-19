@@ -211,7 +211,7 @@ class ImprovedVideoGAN(object):
             None
         """
         assert model_type in {GENERATOR, DISCRIMINATOR}
-        z_vec = torch.rand((self.batch_size, self.z_dim), device=self.device)
+        z_vec = torch.rand((batch.shape[0], self.z_dim), device=self.device)
         fake_videos = self.generator(z_vec)
 
         if model_type == GENERATOR:
