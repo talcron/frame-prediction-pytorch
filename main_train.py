@@ -6,7 +6,7 @@ import torch
 from torch.utils.data import DataLoader
 
 from data.dataloader import VideoDataset
-from model.improved_video_gan import ImprovedVideoGAN
+from runner import ImprovedVideoGAN
 
 
 def get_parser():
