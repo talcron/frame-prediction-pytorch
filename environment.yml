@@ -9,5 +9,6 @@ dependencies:
   - pytorch
   - cudatoolkit=10.1
   - torchvision
-  - scikit-video
   - comet_ml
+  - matplotlib
+  - opencv

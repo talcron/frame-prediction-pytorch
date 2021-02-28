@@ -1,14 +1,28 @@
 from functools import lru_cache
 
+import cv2
 import numpy as np
 import torch
-from skvideo.io import vread
+import torchvision.transforms as transforms
 from torch.utils.data import Dataset
+
+FFMPEG_INPUT_DICT = {
+    '-s': '64x64',       # width x height
+    # '-r': '10',            # fps
+    # '-pix_fmt': 'vdpau_mpeg4'  # todo: look this up
+}
+FFMPEG_OUTPUT_DICT = {
+    '-s': '64x64',       # width x height
+    # '-r': '10',            # fps
+    # '-pix_fmt': 'vdpau_mpeg4'  # todo: look this up
+}
 
 UCF101 = "UCF-101"
 UCF_SPORTS = "ucf_sports"
 DATASETS = {UCF101,
             UCF_SPORTS}
+
+
 # DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")  # sets device for model and PyTorch tensors
 
 
@@ -32,17 +46,25 @@ class VideoDataset(Dataset):
         self.data = self._read_file(index_file)
 
         self._read_video = self._get_read_video_func(cache_dataset)
+        self._transform = transforms.Compose([
+            transforms.Normalize((0.485, 0.456, 0.406), (0.229, 0.224, 0.225))
+        ])
 
-    @staticmethod
-    def _get_read_video_func(keep_in_memory):
-        def _read_video(fn):
-            video = vread(fn, inputdict={'-s': '64x64'}, num_frames=32)
+    def _get_read_video_func(self, keep_in_memory):
+        def read_video(fn):
+            reader = cv2.VideoCapture(fn)
+            video = np.zeros((self.num_frames, *self.shape, 3), dtype=np.uint8)
+            for i in range(self.num_frames):
+                _, frame = reader.read()
+                frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+                video[i] = frame
+            video = torch.from_numpy(video)
             return video
 
         if keep_in_memory:
-            return lru_cache()(_read_video)
+            return lru_cache()(read_video)
         else:
-            return _read_video
+            return read_video
 
     def stats(self):
         # todo: verify a consistent timebase between videos. The UCF videos are all 1:10
@@ -73,10 +95,10 @@ class VideoDataset(Dataset):
 
     def __getitem__(self, idx):
         fn = self.data[idx]
-        video = torch.from_numpy(self._read_video(fn))
-        video = video.permute((3, 0, 1, 2))  # (frame, channels, height, width)
+        video = self._read_video(fn)
+        video = video.permute((3, 0, 2, 1))  # todo: verify this (channels, frames, height, width)
 
-        video = (video / 127.) - 1.  # normalize to the range [-1, 1]
+        video = (video / (255. / 2)) - 1.  # normalize to the range [-1, 1]
         label = self._label_from_path(fn)
         return video, label
 
