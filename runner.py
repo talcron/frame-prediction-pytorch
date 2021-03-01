@@ -2,11 +2,14 @@ import os
 
 import torch
 import torch.cuda
+import torchvision.utils
 
 from model.improved_video_gan import Generator, init_weights, Discriminator
 
+
 CHECKPOINT_FILENAME = 'checkpoint.model'
-SAVE_INTERVAL = 1
+SAVE_INTERVAL = 10
+SAMPLE_INTERVAL = 10
 GRADIENT_MULTIPLIER = 10.
 DISCRIMINATOR = 'discriminator'
 GENERATOR = 'generator'
@@ -134,14 +137,46 @@ class ImprovedVideoGAN(object):
                 self._increment_total_step()
                 batch = batch.to(self.device)
                 if (step + 1) % self.critic_iterations:
-                    self.optimize(batch, DISCRIMINATOR)
+                    fake_batch = self.optimize(batch, DISCRIMINATOR)
                 else:
-                    self.optimize(batch, GENERATOR)
+                    fake_batch = self.optimize(batch, GENERATOR)
+
+            # Log and save checkpoint
             self._experiment.log_epoch_end(epoch)
             if (epoch + 1) % SAVE_INTERVAL:
                 self.save()
+            if (epoch + 1) % SAMPLE_INTERVAL:
+                self._save_batch_as_gif(batch, name=f'{epoch:03d}-real')
+                self._save_batch_as_gif(fake_batch, name=f'{epoch:03d}-fake')
         self.save()
+        self._save_batch_as_gif(batch, name=f'final-real')
+        self._save_batch_as_gif(fake_batch, name=f'final-fake')
         self.log_model()
+        
+    def _save_batch_as_gif(self, batch, name=''):
+        grid_length = 5
+        directory = os.path.join(self.out_dir, 'samples')
+        if not os.path.exists(directory):
+            os.mkdir(directory)
+
+        # produce 5x5 tiled jpegs from the first 25 videos in the batch. One video for each frame.
+        temp_files = [os.path.join(directory, f'{name}_{i}.jpeg') for i in range(self.num_frames)]
+        for i, out_file in enumerate(temp_files):
+            frame_batch = batch[:grid_length**2, :, i, ...]  # select the ith frame from 25 videos
+            torchvision.utils.save_image(frame_batch, out_file, nrow=grid_length)
+
+        # Convert jpegs to AVI and delete the images
+        cmd = "ffmpeg -y -f image2 -i " + directory + '/' + name + '_' + "%d.jpeg " + directory + '/' + name + ".avi"
+        print(cmd)
+        os.system(cmd)
+        for out_file in temp_files:
+            os.remove(out_file)
+
+        # convert AVI to GIF and delete the AVI
+        cmd = "ffmpeg -y -i " + directory + '/' + name + ".avi -pix_fmt rgb24 " + directory + '/' + name + ".gif"
+        print(cmd)
+        os.system(cmd)
+        os.remove(directory + '/' + name + '.avi')
 
     def _increment_total_step(self):
         """
@@ -197,7 +232,7 @@ class ImprovedVideoGAN(object):
             model_type: "generator" or "discriminator"
 
         Returns:
-            None
+            batch of fake videos
         """
         assert model_type in {GENERATOR, DISCRIMINATOR}
         z_vec = torch.rand((batch.shape[0], self.z_dim), device=self.device)
@@ -211,6 +246,7 @@ class ImprovedVideoGAN(object):
             self.generator.requires_grad = False
             self._optimize_discriminator(batch, fake_videos.detach())
             self.generator.requires_grad = True
+        return fake_videos
 
     def _optimize_discriminator(self, batch, fake_videos):
 
