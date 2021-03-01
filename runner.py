@@ -5,11 +5,12 @@ import torch.cuda
 import torchvision.utils
 
 from model.improved_video_gan import Generator, init_weights, Discriminator
+from data.dataloader import VideoDataset
 
 
 CHECKPOINT_FILENAME = 'checkpoint.model'
 SAVE_INTERVAL = 10
-SAMPLE_INTERVAL = 10
+SAMPLE_INTERVAL = 1
 GRADIENT_MULTIPLIER = 10.
 DISCRIMINATOR = 'discriminator'
 GENERATOR = 'generator'
@@ -165,6 +166,7 @@ class ImprovedVideoGAN(object):
         temp_files = [os.path.join(directory, f'{name}_{i}.jpeg') for i in range(self.num_frames)]
         for i, out_file in enumerate(temp_files):
             frame_batch = batch[:grid_length**2, :, i, ...]  # select the ith frame from 25 videos
+            frame_batch = frame_batch / 2 + 0.5  # [-1, 1] -> [0, 1]
             torchvision.utils.save_image(frame_batch, out_file, nrow=grid_length)
 
         # Convert jpegs to AVI and delete the images

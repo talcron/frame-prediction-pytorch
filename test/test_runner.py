@@ -1,4 +1,5 @@
 import unittest
+import os
 
 import torch
 from comet_ml import Experiment
@@ -38,7 +39,24 @@ class TestSaving(unittest.TestCase):
         )
 
     def test_save_batch_as_gif(self):
+        fn = 'results/samples/real.gif'
+        if os.path.exists(fn):
+            os.remove(fn)
+
         self.gan._save_batch_as_gif(self.batch, name='real')
+        self.assertTrue(os.path.exists(fn))
+
+    def test_runner(self):
+        fn_real = 'results/samples/final-real.gif'
+        if os.path.exists(fn_real):
+            os.remove(fn_real)
+        fn_fake = 'results/samples/final-fake.gif'
+        if os.path.exists(fn_fake):
+            os.remove(fn_fake)
+
+        self.gan.train()
+        self.assertTrue(os.path.exists(fn_real))
+        self.assertTrue(os.path.exists(fn_fake))
 
 
 if __name__ == '__main__':

@@ -3,9 +3,7 @@ from functools import lru_cache
 import cv2
 import numpy as np
 import torch
-import torchvision.transforms as transforms
 from torch.utils.data import Dataset
-
 
 UCF101 = "UCF-101"
 UCF_SPORTS = "ucf_sports"
@@ -84,9 +82,17 @@ class VideoDataset(Dataset):
         video = self._read_video(fn)
         video = video.permute((3, 0, 1, 2))  # todo: verify this (channels, frames, height, width)
 
-        video = (video / (255. / 2)) - 1.  # normalize to the range [-1, 1]
+        video = self.normalize(video)
         label = self._label_from_path(fn)
         return video, label
+
+    @staticmethod
+    def normalize(video):
+        return (video / (255. / 2.)) - 1.
+
+    @staticmethod
+    def un_normalize(video):
+        return ((video + 1.) * (255. / 2.)).byte()
 
     def _label_from_path(self, fn):
         if self.dataset == UCF101:
