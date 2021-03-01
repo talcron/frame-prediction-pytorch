@@ -166,17 +166,17 @@ class ImprovedVideoGAN(object):
             torchvision.utils.save_image(frame_batch, out_file, nrow=grid_length)
 
         # Convert jpegs to AVI and delete the images
-        cmd = "ffmpeg -y -f image2 -i " + directory + '/' + name + '_' + "%d.jpeg " + directory + '/' + name + ".avi"
+        cmd = f"ffmpeg -y -f image2 -i {directory}/{name}_%d.jpeg {directory}/{name}.avi"
         print(cmd)
         os.system(cmd)
         for out_file in temp_files:
             os.remove(out_file)
 
         # convert AVI to GIF and delete the AVI
-        cmd = "ffmpeg -y -i " + directory + '/' + name + ".avi -pix_fmt rgb24 " + directory + '/' + name + ".gif"
+        cmd = f"ffmpeg -y -i {directory}/{name}.avi -pix_fmt rgb24 {directory}/{name}.gif"
         print(cmd)
         os.system(cmd)
-        os.remove(directory + '/' + name + '.avi')
+        os.remove(f'{directory}/{name}.avi')
 
     def _increment_total_step(self):
         """

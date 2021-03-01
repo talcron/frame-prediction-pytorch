@@ -54,10 +54,9 @@ class VideoDataset(Dataset):
         def read_video(fn):
             reader = cv2.VideoCapture(fn)
             video = np.zeros((self.num_frames, *self.shape, 3), dtype=np.uint8)
-            for i in range(self.num_frames):
-                _, frame = reader.read()
-                frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-                video[i] = frame
+            for i in range(32):
+                success = reader.read(video[i])
+                cv2.cvtColor(video[i], cv2.COLOR_BGR2RGB, video[i])
             video = torch.from_numpy(video)
             return video
 
