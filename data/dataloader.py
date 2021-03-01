@@ -33,17 +33,15 @@ class VideoDataset(Dataset):
         self.data = self._read_file(index_file)
 
         self._read_video = self._get_read_video_func(cache_dataset)
-        self._transform = transforms.Compose([
-            transforms.Normalize((0.485, 0.456, 0.406), (0.229, 0.224, 0.225))
-        ])
 
     def _get_read_video_func(self, keep_in_memory):
         def read_video(fn):
             reader = cv2.VideoCapture(fn)
             video = np.zeros((self.num_frames, *self.shape, 3), dtype=np.uint8)
-            for i in range(32):
+            for i in range(self.num_frames):
                 success = reader.read(video[i])
                 if not success:
+                    print(f"Read failure on {fn}, frame {i}")
                     breakpoint()
                 cv2.cvtColor(video[i], cv2.COLOR_BGR2RGB, video[i])
             video = torch.from_numpy(video)
