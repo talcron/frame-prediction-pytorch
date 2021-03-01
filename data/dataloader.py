@@ -96,7 +96,7 @@ class VideoDataset(Dataset):
     def __getitem__(self, idx):
         fn = self.data[idx]
         video = self._read_video(fn)
-        video = video.permute((3, 0, 2, 1))  # todo: verify this (channels, frames, height, width)
+        video = video.permute((3, 0, 1, 2))  # todo: verify this (channels, frames, height, width)
 
         video = (video / (255. / 2)) - 1.  # normalize to the range [-1, 1]
         label = self._label_from_path(fn)
