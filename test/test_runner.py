@@ -29,7 +29,7 @@ class TestSaving(unittest.TestCase):
             experiment=experiment,
             device=DEVICE,
             num_gpu=1,
-            n_epochs=1,
+            n_epochs=10,
             batch_size=BATCH_SIZE,
             learning_rate=0,
             z_dim=100,

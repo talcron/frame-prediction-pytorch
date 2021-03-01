@@ -5,8 +5,6 @@ import torch.cuda
 import torchvision.utils
 
 from model.improved_video_gan import Generator, init_weights, Discriminator
-from data.dataloader import VideoDataset
-
 
 CHECKPOINT_FILENAME = 'checkpoint.model'
 SAVE_INTERVAL = 10
@@ -136,24 +134,24 @@ class ImprovedVideoGAN(object):
         """
         for epoch in range(self.epoch, self.epoch + self.n_epochs):
             self._experiment.set_epoch(epoch)
-            for step, (batch, lbl) in enumerate(self.dataloader):
+            for _, (batch, lbl) in enumerate(self.dataloader):
                 self._increment_total_step()
                 batch = batch.to(self.device)
-                if (step + 1) % self.critic_iterations:
+                if (self.step + 1) % self.critic_iterations:
                     fake_batch = self.optimize(batch, DISCRIMINATOR)
                 else:
                     fake_batch = self.optimize(batch, GENERATOR)
 
             # Log and save checkpoint
             self._experiment.log_epoch_end(epoch)
-            if (epoch + 1) % SAVE_INTERVAL:
+            if (epoch + 1) % SAVE_INTERVAL == 0:
                 self.save()
-            if (epoch + 1) % SAMPLE_INTERVAL:
+            if (epoch + 1) % SAMPLE_INTERVAL == 0:
                 self._save_batch_as_gif(batch, name=f'{epoch:03d}-real', upload=True)
                 self._save_batch_as_gif(fake_batch, name=f'{epoch:03d}-fake', upload=True)
         self.save()
-        self._save_batch_as_gif(batch, name=f'final-real')
-        self._save_batch_as_gif(fake_batch, name=f'final-fake')
+        self._save_batch_as_gif(batch, name=f'final-real', upload=True)
+        self._save_batch_as_gif(fake_batch, name=f'final-fake', upload=True)
         self.log_model()
         
     def _save_batch_as_gif(self, batch, name='', upload=False):
