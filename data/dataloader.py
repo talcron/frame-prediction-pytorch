@@ -6,24 +6,11 @@ import torch
 import torchvision.transforms as transforms
 from torch.utils.data import Dataset
 
-FFMPEG_INPUT_DICT = {
-    '-s': '64x64',       # width x height
-    # '-r': '10',            # fps
-    # '-pix_fmt': 'vdpau_mpeg4'  # todo: look this up
-}
-FFMPEG_OUTPUT_DICT = {
-    '-s': '64x64',       # width x height
-    # '-r': '10',            # fps
-    # '-pix_fmt': 'vdpau_mpeg4'  # todo: look this up
-}
 
 UCF101 = "UCF-101"
 UCF_SPORTS = "ucf_sports"
 DATASETS = {UCF101,
             UCF_SPORTS}
-
-
-# DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")  # sets device for model and PyTorch tensors
 
 
 class VideoDataset(Dataset):
@@ -56,6 +43,8 @@ class VideoDataset(Dataset):
             video = np.zeros((self.num_frames, *self.shape, 3), dtype=np.uint8)
             for i in range(32):
                 success = reader.read(video[i])
+                if not success:
+                    breakpoint()
                 cv2.cvtColor(video[i], cv2.COLOR_BGR2RGB, video[i])
             video = torch.from_numpy(video)
             return video

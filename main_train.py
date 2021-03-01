@@ -94,7 +94,7 @@ def main(args):
         z_dim=args.zdim,
         beta1=args.beta1,
         critic_iterations=5,
-        out_dir=args.save_dir,
+        out_dir=os.path.join(args.save_dir, args.exp_name),
     )
 
     if args.resume:

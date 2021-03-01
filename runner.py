@@ -32,8 +32,10 @@ class ImprovedVideoGAN(object):
             z_dim=100,
             beta1=0.5,
             critic_iterations=5,
-            out_dir='experiments'
+            out_dir='extra'
     ):
+        if not os.path.exists(out_dir):
+            os.mkdir(out_dir)
         self.out_dir = out_dir
         self.device = device
         self.num_gpu = num_gpu
@@ -146,14 +148,14 @@ class ImprovedVideoGAN(object):
             if (epoch + 1) % SAVE_INTERVAL:
                 self.save()
             if (epoch + 1) % SAMPLE_INTERVAL:
-                self._save_batch_as_gif(batch, name=f'{epoch:03d}-real')
-                self._save_batch_as_gif(fake_batch, name=f'{epoch:03d}-fake')
+                self._save_batch_as_gif(batch, name=f'{epoch:03d}-real', upload=True)
+                self._save_batch_as_gif(fake_batch, name=f'{epoch:03d}-fake', upload=True)
         self.save()
         self._save_batch_as_gif(batch, name=f'final-real')
         self._save_batch_as_gif(fake_batch, name=f'final-fake')
         self.log_model()
         
-    def _save_batch_as_gif(self, batch, name=''):
+    def _save_batch_as_gif(self, batch, name='', upload=False):
         grid_length = 5
         directory = os.path.join(self.out_dir, 'samples')
         if not os.path.exists(directory):
@@ -177,6 +179,10 @@ class ImprovedVideoGAN(object):
         print(cmd)
         os.system(cmd)
         os.remove(f'{directory}/{name}.avi')
+
+        # Upload to CometML
+        if upload:
+            self._experiment.log_image(f'{directory}/{name}.gif')
 
     def _increment_total_step(self):
         """
