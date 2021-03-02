@@ -137,7 +137,7 @@ class ImprovedVideoGAN(object):
             for _, (batch, lbl) in enumerate(self.dataloader):
                 self._increment_total_step()
                 batch = batch.to(self.device)
-                if (self.step + 1) % self.critic_iterations != 0:
+                if (self.step + 1) % (self.critic_iterations + 1) != 0:
                     fake_batch = self.optimize(batch, DISCRIMINATOR)
                 else:
                     fake_batch = self.optimize(batch, GENERATOR)
@@ -153,7 +153,7 @@ class ImprovedVideoGAN(object):
         self._save_batch_as_gif(batch, name=f'final-real', upload=True)
         self._save_batch_as_gif(fake_batch, name=f'final-fake', upload=True)
         self.log_model()
-        
+
     def _save_batch_as_gif(self, batch, name='', upload=False):
         grid_length = 5
         directory = os.path.join(self.out_dir, 'samples')
@@ -163,7 +163,7 @@ class ImprovedVideoGAN(object):
         # produce 5x5 tiled jpegs from the first 25 videos in the batch. One video for each frame.
         temp_files = [os.path.join(directory, f'{name}_{i}.jpeg') for i in range(self.num_frames)]
         for i, out_file in enumerate(temp_files):
-            frame_batch = batch[:grid_length**2, :, i, ...]  # select the ith frame from 25 videos
+            frame_batch = batch[:grid_length ** 2, :, i, ...]  # select the ith frame from 25 videos
             frame_batch = frame_batch / 2 + 0.5  # [-1, 1] -> [0, 1]
             torchvision.utils.save_image(frame_batch, out_file, nrow=grid_length)
 
@@ -277,8 +277,7 @@ class ImprovedVideoGAN(object):
         self.discriminator.requires_grad = True
 
         gradients = interpolates.grad
-        slopes = torch.sqrt(torch.sum(torch.square(gradients), dim=1))
-        # noinspection PyTypeChecker
+        slopes = torch.norm(gradients.reshape(len(batch), -1), p=2, dim=1)
         gradient_penalty = torch.mean((slopes - 1.) ** 2)
         d_cost_final = d_cost + GRADIENT_MULTIPLIER * gradient_penalty
 
