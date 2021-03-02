@@ -1,5 +1,6 @@
 import argparse
 import os
+import sys
 
 from comet_ml import Experiment
 import torch
@@ -67,6 +68,7 @@ def get_parser():
 def main(args):
     experiment = Experiment(disabled=args.exp_disable)
     experiment.add_tag(args.exp_name)
+    experiment.log_text(' '.join(sys.argv))
     assert os.path.exists(args.save_dir), f'save-dir {args.save_dir} does not exist'
 
     # Check if Output Directory Exists
@@ -82,6 +84,7 @@ def main(args):
         batch_size=args.batch_size,
         shuffle=True,
         num_workers=args.workers,
+        drop_last=True,
     )
     GAN = ImprovedVideoGAN(
         dataloader=dataloader,

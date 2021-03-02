@@ -137,7 +137,7 @@ class ImprovedVideoGAN(object):
             for _, (batch, lbl) in enumerate(self.dataloader):
                 self._increment_total_step()
                 batch = batch.to(self.device)
-                if (self.step + 1) % self.critic_iterations:
+                if (self.step + 1) % self.critic_iterations != 0:
                     fake_batch = self.optimize(batch, DISCRIMINATOR)
                 else:
                     fake_batch = self.optimize(batch, GENERATOR)

@@ -25,6 +25,7 @@ class TestDataloader(unittest.TestCase):
 
     def test_frame_loads_correctly(self):
         video, label = self.dataset[50]
+        video = video / 2 + 0.5  # [-1, 1] -> [0, 1]
         plt.imshow(video[:, 10, ...].permute((1, 2, 0)))
         plt.show()
         worked = input('Enter y/[n]')

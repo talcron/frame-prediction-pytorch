@@ -21,6 +21,7 @@ class TestSaving(unittest.TestCase):
             batch_size=BATCH_SIZE,
             shuffle=False,
             num_workers=0,
+            drop_last=True,
         )
         self.batch, _ = next(iter(dataloader))
 
@@ -28,8 +29,8 @@ class TestSaving(unittest.TestCase):
             dataloader=dataloader,
             experiment=experiment,
             device=DEVICE,
-            num_gpu=1,
-            n_epochs=10,
+            num_gpu=0,
+            n_epochs=1,
             batch_size=BATCH_SIZE,
             learning_rate=0,
             z_dim=100,
@@ -46,17 +47,21 @@ class TestSaving(unittest.TestCase):
         self.gan._save_batch_as_gif(self.batch, name='real')
         self.assertTrue(os.path.exists(fn))
 
-    def test_runner(self):
-        fn_real = 'results/samples/final-real.gif'
-        if os.path.exists(fn_real):
-            os.remove(fn_real)
-        fn_fake = 'results/samples/final-fake.gif'
-        if os.path.exists(fn_fake):
-            os.remove(fn_fake)
+    def test_runner_saves_samples_and_checkpoint(self):
+        files = [
+            'results/samples/final-real.gif',
+            'results/samples/final-fake.gif',
+            'results/samples/000-fake.gif',
+            'results/samples/000-real.gif',
+            'results/checkpoint.model'
+        ]
+        for fn in files:
+            if os.path.exists(fn):
+                os.remove(fn)
 
         self.gan.train()
-        self.assertTrue(os.path.exists(fn_real))
-        self.assertTrue(os.path.exists(fn_fake))
+        for fn in files:
+            self.assertTrue(os.path.exists(fn))
 
 
 if __name__ == '__main__':

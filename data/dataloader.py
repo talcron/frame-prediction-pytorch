@@ -38,9 +38,13 @@ class VideoDataset(Dataset):
             video = np.zeros((self.num_frames, *self.shape, 3), dtype=np.uint8)
             for i in range(self.num_frames):
                 success = reader.read(video[i])
-                if not success:
-                    print(f"Read failure on {fn}, frame {i}")
-                    breakpoint()
+                if not success or np.all(video[i] == 0):
+                    print(f"No frame read from {fn}, frame {i}")
+                    if i > 0:  # tile the rest of the frames
+                        video[i:] = video[i-1]
+                        break
+                    else:
+                        raise Exception(f"No frames could be read from {fn}")
                 cv2.cvtColor(video[i], cv2.COLOR_BGR2RGB, video[i])
             video = torch.from_numpy(video)
             return video
