@@ -256,7 +256,7 @@ class ImprovedVideoGAN(object):
 
     def _optimize_discriminator(self, batch, fake_videos):
 
-        self.discriminator.zero_grad()
+        # self.discriminator.zero_grad()
 
         d_fake = self.discriminator(fake_videos)
         d_real = self.discriminator(batch)
@@ -265,31 +265,68 @@ class ImprovedVideoGAN(object):
 
         self._experiment.log_metric('g_cost', g_cost)
         self._experiment.log_metric('d_cost', d_cost)
+        self._experiment.log_metric('d_real', torch.mean(d_real))
 
-        alpha = torch.rand(size=(batch.shape[0], 1, 1, 1, 1), device=self.device)
-        interpolates = batch + (alpha * (fake_videos - batch))
-        interpolates.requires_grad_(True)
-        interpolates.retain_grad()
-        d_hat = self.discriminator(interpolates)
+        # alpha = torch.rand(size=(batch.shape[0], 1, 1, 1, 1), device=self.device)
+        # interpolates = batch + (alpha * (fake_videos - batch))
+        # interpolates.requires_grad_(True)
+        # interpolates.retain_grad()
+        # d_hat = self.discriminator(interpolates)
+        #
+        # self.discriminator.requires_grad = False
+        # d_hat.backward(torch.ones_like(d_hat), retain_graph=True)
+        # self.discriminator.requires_grad = True
+        #
+        # gradients = interpolates.grad
+        # slopes = torch.norm(gradients.reshape(len(batch), -1), p=2, dim=1)
+        # gradient_penalty = torch.mean((slopes - 1.) ** 2)
+        one = torch.FloatTensor([1])
+        mone = one * -1
+        one = one.to(self.device)
+        mone = mone.to(self.device)
+        d_real = torch.mean(d_real, dim=0)
+        d_real.backward(mone)
+        d_fake = torch.mean(d_fake, dim=0)
+        d_fake.backward(one)
 
-        self.discriminator.requires_grad = False
-        d_hat.backward(torch.ones_like(d_hat), retain_graph=True)
-        self.discriminator.requires_grad = True
+        gradient_penalty = self._calc_grad_penalty(batch, fake_videos)
+        gradient_penalty.backward()
 
-        gradients = interpolates.grad
-        slopes = torch.norm(gradients.reshape(len(batch), -1), p=2, dim=1)
-        gradient_penalty = torch.mean((slopes - 1.) ** 2)
-        d_cost_final = d_cost + GRADIENT_MULTIPLIER * gradient_penalty
 
-        d_cost_final.backward()
+        # d_cost_final = d_cost + GRADIENT_MULTIPLIER * gradient_penalty
+        d_cost_final = d_cost + gradient_penalty
+
+        # self._experiment.log_metric('avg gradient norm', torch.mean(slopes))
+        self._experiment.log_metric('grad_penalty', gradient_penalty)
+
+        # d_cost_final.backward()
         self.discriminator_optimizer.step()
         print(f'discriminator cost: {d_cost_final}')
         self._experiment.log_metric('d_cost_final', d_cost_final)
         self.discriminator_optimizer.zero_grad()
 
+    def _calc_grad_penalty(self, real_data, fake_data):
+        alpha = torch.rand(real_data.size(0), 1)
+        alpha = alpha.expand(real_data.size())
+        alpha = alpha.to(self.device)
+
+        interpolates = alpha * real_data + ((1. - alpha) * fake_data)
+
+        interpolates = interpolates.to(self.device)
+        interpolates = torch.autograd.Variable(interpolates, requires_grad=True)
+
+        disc_interpolates = self.discriminator(interpolates)
+
+        gradients = torch.autograd.grad(outputs=disc_interpolates, inputs=interpolates,
+                                  grad_outputs=torch.ones(disc_interpolates.size()).to(self.device),
+                                  create_graph=True, retain_graph=True, only_inputs=True)[0]
+
+        gradient_penalty = ((gradients.norm(2, dim=1) - 1) ** 2).mean() * GRADIENT_MULTIPLIER
+        return gradient_penalty
+
     def _optimize_generator(self, fake_videos):
 
-        self.generator.zero_grad()
+        # self.generator.zero_grad()
 
         d_fake = self.discriminator(fake_videos)
         g_cost = -torch.mean(d_fake)
