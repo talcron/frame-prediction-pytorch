@@ -100,7 +100,7 @@ def main(args):
         out_dir=os.path.join(args.save_dir, args.exp_name),
     )
 
-    if args.resume:
+    if args.resume != '':
         GAN.load(args.resume)
 
     GAN.train()

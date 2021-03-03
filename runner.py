@@ -8,7 +8,7 @@ from model.improved_video_gan import Generator, init_weights, Discriminator
 
 CHECKPOINT_FILENAME = 'checkpoint.model'
 SAVE_INTERVAL = 10
-SAMPLE_INTERVAL = 1
+SAMPLE_INTERVAL = 10
 GRADIENT_MULTIPLIER = 10.
 DISCRIMINATOR = 'discriminator'
 GENERATOR = 'generator'
@@ -147,8 +147,8 @@ class ImprovedVideoGAN(object):
             if (epoch + 1) % SAVE_INTERVAL == 0:
                 self.save()
             if (epoch + 1) % SAMPLE_INTERVAL == 0:
-                self._save_batch_as_gif(batch, name=f'{epoch:03d}-real', upload=True)
-                self._save_batch_as_gif(fake_batch, name=f'{epoch:03d}-fake', upload=True)
+                self._save_batch_as_gif(batch, name=f'{epoch:05d}-real', upload=True)
+                self._save_batch_as_gif(fake_batch, name=f'{epoch:05d}-fake', upload=True)
         self.save()
         self._save_batch_as_gif(batch, name=f'final-real', upload=True)
         self._save_batch_as_gif(fake_batch, name=f'final-fake', upload=True)
@@ -263,7 +263,7 @@ class ImprovedVideoGAN(object):
         g_cost = -torch.mean(d_fake)
         d_cost = -g_cost - torch.mean(d_real)
 
-        self._experiment.log_metric('g_cost', g_cost)
+        self._experiment.log_metric('d_fake', g_cost)
         self._experiment.log_metric('d_cost', d_cost)
         self._experiment.log_metric('d_real', torch.mean(d_real))
 
