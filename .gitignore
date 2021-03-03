@@ -3,3 +3,4 @@ __pycache__/
 .comet.config
 /test/data
 /test/results
+extra/
