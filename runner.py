@@ -156,7 +156,6 @@ class ImprovedVideoGAN(object):
             if (epoch + 1) % SAVE_INTERVAL == 0:
                 self.save()
             if (epoch + 1) % SAMPLE_INTERVAL == 0:
-                self._save_batch_as_gif(batch, name=f'{epoch:05d}-real', upload=True)
                 self._save_batch_as_gif(fake_batch, name=f'{epoch:05d}-fake', upload=True)
         self.save()
         self._save_batch_as_gif(batch, name=f'final-real', upload=True)
@@ -331,8 +330,8 @@ class ImprovedVideoGAN(object):
         disc_interpolates = self.discriminator(interpolates)
 
         gradients = torch.autograd.grad(outputs=disc_interpolates, inputs=interpolates,
-                                  grad_outputs=torch.ones(disc_interpolates.size()).to(self.device),
-                                  create_graph=True, retain_graph=True, only_inputs=True)[0]
+                                        grad_outputs=torch.ones(disc_interpolates.size()).to(self.device),
+                                        create_graph=True, retain_graph=True, only_inputs=True)[0]
 
         gradient_penalty = ((gradients.norm(2, dim=1) - 1) ** 2).mean() * GRADIENT_MULTIPLIER
         return gradient_penalty
