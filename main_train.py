@@ -2,7 +2,7 @@ import argparse
 import os
 import sys
 
-from comet_ml import Experiment
+from comet_ml import Experiment, ExistingExperiment
 import torch
 from torch.utils.data import DataLoader
 
@@ -33,14 +33,16 @@ def get_parser():
                         metavar='N', help='print frequency (default: 10)')
     parser.add_argument('--resume', default='', type=str, metavar='PATH',
                         help='path to latest checkpoint (default: none)')
+    parser.add_argument('--exp-key', default='', type=str,
+                        help='The key to an existing experiment to be continued (default: None)')
     parser.add_argument('-e', '--evaluate', dest='evaluate', action='store_true',
                         help='evaluate model on test set')
     parser.add_argument('--pretrained', dest='pretrained', action='store_true',
                         help='use pre-trained model')
     parser.add_argument('--num-frozen', default=0, type=int, metavar='N',
                         help='# frozen cnv2 layers')
-    parser.add_argument('--root-dir', default='/datasets/UCF-101', type=str, metavar='PATH',
-                        help='directory containing videos and index file (default: /datasets/UCF-101)')
+    parser.add_argument('--root-dir', default='/', type=str, metavar='PATH',
+                        help='directory containing videos and index file (default: /)')
     parser.add_argument('--index-file', default='mjpeg-index.txt', type=str, metavar='FILENAME',
                         help='index file referencing all videos relative to root_dir (default: mjpeg-index.txt)')
     parser.add_argument('--save-dir', default='extra/', type=str, metavar='PATH',
@@ -53,7 +55,7 @@ def get_parser():
                         help='Beta parameter for ADAM (default: 0.5)')
     parser.add_argument('--zdim', default=100, type=int,
                         help='Dimensionality of hidden features (default: 100)')
-    parser.add_argument('--exp-name', default='dev', type=str,
+    parser.add_argument('--exp-name', default='dev', type=str, nargs='+',
                         help='The experiment name (default: deb)')
     parser.add_argument('--exp-disable', default=False, action='store_true',
                         help='Disable CometML (default: False if switch is absent)')
@@ -65,10 +67,34 @@ def get_parser():
     return parser
 
 
-def main(args):
-    experiment = Experiment(disabled=args.exp_disable)
-    experiment.add_tag(args.exp_name)
+def get_experiment(args):
+    if args.resume and args.exp_key:
+        experiment = ExistingExperiment(
+            disabled=args.exp_disable,
+            previous_experiment=args.exp_key,
+            log_code=True,
+            log_env_gpu=True,
+            log_env_cpu=True,
+            log_env_details=True,
+            log_env_host=True,
+            log_git_metadata=True,
+            log_git_patch=True,
+        )
+    else:
+        experiment = Experiment(disabled=args.exp_disable)
+
+    if isinstance(args.exp_name, list):
+        for tag in args.exp_name:
+            experiment.add_tag(tag)
+    else:
+        experiment.add_tag(args.exp_name)
+
     experiment.log_text(' '.join(sys.argv))
+    return experiment
+
+
+def main(args):
+    experiment = get_experiment(args)
     assert os.path.exists(args.save_dir), f'save-dir {args.save_dir} does not exist'
 
     # Check if Output Directory Exists
@@ -86,6 +112,11 @@ def main(args):
         num_workers=args.workers,
         drop_last=True,
     )
+    if isinstance(args.exp_name, list):
+        exp_name = '_'.join(args.exp_name)
+    else:
+        exp_name = args.exp_name
+
     GAN = ImprovedVideoGAN(
         dataloader=dataloader,
         experiment=experiment,
@@ -98,7 +129,7 @@ def main(args):
         z_dim=args.zdim,
         beta1=args.beta1,
         critic_iterations=5,
-        out_dir=os.path.join(args.save_dir, args.exp_name),
+        out_dir=os.path.join(args.save_dir, exp_name),
         spec_norm=args.spec_norm,
     )
 

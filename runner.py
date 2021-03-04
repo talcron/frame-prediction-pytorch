@@ -213,6 +213,7 @@ class ImprovedVideoGAN(object):
         """
         torch.save({
             'epoch': self.epoch,
+            'step': self.step,
             'generator_state_dict': self.generator.state_dict(),
             'discriminator_state_dict': self.discriminator.state_dict(),
             'generator_optimizer_state_dict': self.generator_optimizer.state_dict(),
@@ -232,10 +233,11 @@ class ImprovedVideoGAN(object):
         assert os.path.exists(checkpoint_path), f'file {checkpoint_path} does not exist'
         checkpoint = torch.load(checkpoint_path)
         self.epoch = checkpoint['epoch']
+        self.step = checkpoint.get('step', 0)  # use a default of 0 for backwards compatibility
         self.generator.load_state_dict(checkpoint['generator_state_dict'])
         self.discriminator.load_state_dict(checkpoint['discriminator_state_dict'])
         self.generator_optimizer.load_state_dict(checkpoint['generator_optimizer_state_dict'])
-        self.discriminator_optimizer.load_state_dict(checkpoint['discriminator_state_dict'])
+        self.discriminator_optimizer.load_state_dict(checkpoint['discriminator_optimizer_state_dict'])
 
     def optimize(self, batch, model_type):
         """
