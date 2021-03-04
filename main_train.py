@@ -6,7 +6,7 @@ from comet_ml import Experiment
 import torch
 from torch.utils.data import DataLoader
 
-from data.dataloader import VideoDataset
+from data.dataloader import DatasetFactory
 from runner import ImprovedVideoGAN
 
 
@@ -78,7 +78,7 @@ def main(args):
     if args.cache_dataset and args.workers > 0:
         ResourceWarning("You are using multiple workers and keeping data in memory, this will multiply memory usage"
                         "by the number of workers.")
-    dataset = VideoDataset(os.path.join(args.root_dir, args.index_file), cache_dataset=args.cache_dataset)
+    dataset = DatasetFactory.get_dataset(os.path.join(args.root_dir, args.index_file), cache_dataset=args.cache_dataset)
     dataloader = DataLoader(
         dataset,
         batch_size=args.batch_size,
