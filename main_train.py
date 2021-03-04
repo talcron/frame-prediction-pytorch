@@ -26,8 +26,8 @@ def get_parser():
                         metavar='LR', help='initial learning rate (default: 1e-4')
     parser.add_argument('--momentum', default=0.9, type=float, metavar='M',
                         help='momentum')
-    parser.add_argument('--weight-decay', '--wd', default=1e-3, type=float,
-                        metavar='W', help='weight decay (default: 1e-3)')
+    parser.add_argument('--weight-decay', '--wd', default=0.0, type=float,
+                        metavar='W', help='weight decay (default: 0.0)')
     parser.add_argument('--lr_step', default='40,60', help='decreasing strategy')
     parser.add_argument('--print-freq', '-p', default=100, type=int,
                         metavar='N', help='print frequency (default: 10)')
@@ -35,8 +35,6 @@ def get_parser():
                         help='path to latest checkpoint (default: none)')
     parser.add_argument('-e', '--evaluate', dest='evaluate', action='store_true',
                         help='evaluate model on test set')
-    parser.add_argument('-wl', '--weighted-loss', dest='weighted_loss', action='store_true',
-                        help='use weighted CE loss')
     parser.add_argument('--pretrained', dest='pretrained', action='store_true',
                         help='use pre-trained model')
     parser.add_argument('--num-frozen', default=0, type=int, metavar='N',
@@ -61,6 +59,8 @@ def get_parser():
                         help='Disable CometML (default: False if switch is absent)')
     parser.add_argument('--cache-dataset', default=False, action='store_true',
                         help='Keep all data in memory (default: False if switch is absent)')
+    parser.add_argument('--spec-norm', default=False, action='store_true',
+                        help='set to True to use spectral normalization in place of gradient penalty')
 
     return parser
 
@@ -94,10 +94,12 @@ def main(args):
         n_epochs=args.epochs,
         batch_size=args.batch_size,
         learning_rate=args.lr,
+        weight_decay=args.weight_decay,
         z_dim=args.zdim,
         beta1=args.beta1,
         critic_iterations=5,
         out_dir=os.path.join(args.save_dir, args.exp_name),
+        spec_norm=args.spec_norm,
     )
 
     if args.resume != '':

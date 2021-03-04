@@ -64,7 +64,7 @@ class Generator(nn.Module):
 class Discriminator(nn.Module):
     """Discriminator for improved_video_gan model"""
 
-    def __init__(self):
+    def __init__(self, spec_norm=False):
         super(Discriminator, self).__init__()
 
         self.conv1 = nn.Conv3d(in_channels=3, out_channels=64,
@@ -89,6 +89,19 @@ class Discriminator(nn.Module):
         self.linear = nn.Linear(in_features=4, out_features=1, bias=True)
 
         self.leaky_relu = nn.LeakyReLU(negative_slope=0.2, inplace=True)
+
+        if spec_norm:
+            self.conv1 = torch.nn.utils.spectral_norm(self.conv1)
+            self.conv2 = torch.nn.utils.spectral_norm(self.conv2)
+            self.conv3 = torch.nn.utils.spectral_norm(self.conv3)
+            self.conv4 = torch.nn.utils.spectral_norm(self.conv4)
+            self.conv5 = torch.nn.utils.spectral_norm(self.conv5)
+            self.linear = torch.nn.utils.spectral_norm(self.linear)
+            self.ln1 = torch.nn.Identity()
+            self.ln2 = torch.nn.Identity()
+            self.ln3 = torch.nn.Identity()
+            self.ln4 = torch.nn.Identity()
+
 
     def forward(self, x):
         x = self.leaky_relu(self.ln1(self.conv1(x)))

@@ -28,10 +28,12 @@ class ImprovedVideoGAN(object):
             num_frames=32,
             crop_size=64,
             learning_rate=0.0002,
+            weight_decay=0.0,
             z_dim=100,
             beta1=0.5,
             critic_iterations=5,
-            out_dir='extra'
+            out_dir='extra',
+            spec_norm=False
     ):
         if not os.path.exists(out_dir):
             os.mkdir(out_dir)
@@ -45,15 +47,21 @@ class ImprovedVideoGAN(object):
         self.beta1 = beta1
         self.batch_size = batch_size
         self.learning_rate = learning_rate
+        self.weight_decay = weight_decay
         self.z_dim = z_dim
         self.num_frames = num_frames
+        self.spec_norm = spec_norm
 
         self.step = 0
         self.epoch = 0
         self.checkpoint_file = os.path.join(self.out_dir, CHECKPOINT_FILENAME)
 
-        self.generator = self.get_generator()
-        self.discriminator = self.get_discriminator()
+        if self.spec_norm:
+            self.generator = self.get_generator()
+            self.discriminator = self.get_discriminator()
+        else:
+            self.generator = self.get_generator()
+            self.discriminator = self.get_discriminator()
 
         self.discriminator_optimizer = self._make_optimizer(self.discriminator)
         self.generator_optimizer = self._make_optimizer(self.generator)
@@ -89,6 +97,7 @@ class ImprovedVideoGAN(object):
             filter(lambda p: p.requires_grad, model.parameters()),
             lr=self.learning_rate,
             betas=(self.beta1, BETA2),
+            weight_decay=self.weight_decay,
         )
 
     def to(self, device):
@@ -124,7 +133,7 @@ class ImprovedVideoGAN(object):
         Returns:
             discriminator model
         """
-        d_net = Discriminator()
+        d_net = Discriminator(self.spec_norm)
         d_net.apply(init_weights)
         return d_net
 
@@ -241,28 +250,29 @@ class ImprovedVideoGAN(object):
             batch of fake videos
         """
         assert model_type in {GENERATOR, DISCRIMINATOR}
-        z_vec = torch.rand((batch.shape[0], self.z_dim), device=self.device)
-        fake_videos = self.generator(z_vec)
-
         if model_type == GENERATOR:
             self.discriminator.requires_grad = False
-            self._optimize_generator(fake_videos)
+            fake_videos = self._optimize_generator(batch.shape[0])
             self.discriminator.requires_grad = True
         elif model_type == DISCRIMINATOR:
             self.generator.requires_grad = False
+            z_vec = torch.rand((batch.shape[0], self.z_dim), device=self.device)
+            fake_videos = self.generator(z_vec)
             self._optimize_discriminator(batch, fake_videos.detach())
             self.generator.requires_grad = True
         return fake_videos
 
     def _optimize_discriminator(self, batch, fake_videos):
 
-        # self.discriminator.zero_grad()
+        self.discriminator.zero_grad()
 
         d_fake = self.discriminator(fake_videos)
         d_real = self.discriminator(batch)
         g_cost = -torch.mean(d_fake)
         d_cost = -g_cost - torch.mean(d_real)
 
+        if (self.step + 1) % (self.critic_iterations + 1) == 1:
+            self._experiment.log_metric('g_cost', g_cost)
         self._experiment.log_metric('d_fake', g_cost)
         self._experiment.log_metric('d_cost', d_cost)
         self._experiment.log_metric('d_real', torch.mean(d_real))
@@ -280,6 +290,7 @@ class ImprovedVideoGAN(object):
         # gradients = interpolates.grad
         # slopes = torch.norm(gradients.reshape(len(batch), -1), p=2, dim=1)
         # gradient_penalty = torch.mean((slopes - 1.) ** 2)
+
         one = torch.FloatTensor([1])
         mone = one * -1
         one = one.to(self.device)
@@ -289,21 +300,23 @@ class ImprovedVideoGAN(object):
         d_fake = torch.mean(d_fake, dim=0)
         d_fake.backward(one)
 
-        gradient_penalty = self._calc_grad_penalty(batch, fake_videos)
-        gradient_penalty.backward()
+        # IDEA USE ZERO CENTERED GRADIENT PENALTY
+        # IDEA USE DIFFERENT GRADIENT PENALTY CONSTANT
+        # IDEA USE ADAM WEIGHT DECAY OF 0.001 (AS RECOMMENDED IN IMPROVED TRAINING OF WGAN PAPER)
 
+        if not self.spec_norm:
+            gradient_penalty = self._calc_grad_penalty(batch, fake_videos)
+            gradient_penalty.backward()
+            # d_cost_final = d_cost + GRADIENT_MULTIPLIER * gradient_penalty
+            d_cost_final = d_cost + gradient_penalty
+            self._experiment.log_metric('grad_penalty', gradient_penalty)
+        else:
+            d_cost_final = d_cost
 
-        # d_cost_final = d_cost + GRADIENT_MULTIPLIER * gradient_penalty
-        d_cost_final = d_cost + gradient_penalty
-
-        # self._experiment.log_metric('avg gradient norm', torch.mean(slopes))
-        self._experiment.log_metric('grad_penalty', gradient_penalty)
-
-        # d_cost_final.backward()
         self.discriminator_optimizer.step()
         print(f'discriminator cost: {d_cost_final}')
         self._experiment.log_metric('d_cost_final', d_cost_final)
-        self.discriminator_optimizer.zero_grad()
+        # self.discriminator_optimizer.zero_grad()
 
     def _calc_grad_penalty(self, real_data, fake_data):
         alpha = torch.rand(real_data.size(0), 1)
@@ -324,9 +337,12 @@ class ImprovedVideoGAN(object):
         gradient_penalty = ((gradients.norm(2, dim=1) - 1) ** 2).mean() * GRADIENT_MULTIPLIER
         return gradient_penalty
 
-    def _optimize_generator(self, fake_videos):
+    def _optimize_generator(self, b_size):
 
-        # self.generator.zero_grad()
+        self.generator.zero_grad()
+
+        z_vec = torch.rand((b_size, self.z_dim), device=self.device)
+        fake_videos = self.generator(z_vec)
 
         d_fake = self.discriminator(fake_videos)
         g_cost = -torch.mean(d_fake)
@@ -334,5 +350,7 @@ class ImprovedVideoGAN(object):
 
         self.generator_optimizer.step()
         print(f'generator cost: {g_cost}')
-        self._experiment.log_metric('g_cost', g_cost)
-        self.generator_optimizer.zero_grad()
+        self._experiment.log_metric('d_fake', g_cost)
+        # self.generator_optimizer.zero_grad()
+
+        return fake_videos
