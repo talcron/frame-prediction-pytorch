@@ -93,7 +93,7 @@ class ImprovedVideoGAN(object):
         Returns:
             an optimizer
         """
-        return torch.optim.Adam(
+        return torch.optim.AdamW(
             filter(lambda p: p.requires_grad, model.parameters()),
             lr=self.learning_rate,
             betas=(self.beta1, BETA2),
