@@ -4,7 +4,7 @@ import torch
 import torch.cuda
 import torchvision.utils
 
-from functional import frechet_inception_distance
+from utils.functional import frechet_inception_distance
 from model.improved_video_gan import Generator, init_weights, Discriminator
 
 
