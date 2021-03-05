@@ -70,6 +70,8 @@ def sqrt_newton_schulz_autograd(x, num_iterations, device):
 # Seems to be slightly faster and has much lower memory overhead
 def sqrt_newton_schulz(x: torch.Tensor, num_iterations=10):
     device = x.device
+    if x.ndim == 2:
+        x = x.unsqueeze(0)
     batch_size = x.shape[0]
     dim = x.shape[1]
     norm_x = x.mul(x).sum(dim=1).sum(dim=1).sqrt()
@@ -81,7 +83,7 @@ def sqrt_newton_schulz(x: torch.Tensor, num_iterations=10):
         Y = Y.bmm(T)
         Z = T.bmm(Z)
     s_x = Y * torch.sqrt(norm_x).view(batch_size, 1, 1).expand_as(x)
-    return s_x
+    return s_x.squeeze()
 
 
 # Backward via iterative Lyapunov solver
