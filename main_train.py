@@ -139,7 +139,11 @@ def main(args):
     if args.resume != '':
         GAN.load(args.resume)
 
-    GAN.train()
+    try:
+        GAN.train()
+    except Exception as e:
+        GAN.save()
+        raise e
 
 
 if __name__ == '__main__':
