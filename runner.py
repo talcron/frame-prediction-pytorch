@@ -9,9 +9,9 @@ from utils.functional import frechet_inception_distance
 
 CHECKPOINT_FILENAME = 'checkpoint.model'
 
-SAVE_INTERVAL = 1      # epochs
+SAVE_INTERVAL = 1     # epochs
 SAMPLE_INTERVAL = 10  # steps
-FID_INTERVAL = 10      # steps
+FID_INTERVAL = 100    # steps
 GRADIENT_MULTIPLIER = 10.
 
 

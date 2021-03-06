@@ -35,8 +35,10 @@ def frechet_inception_distance(fake_embedding: torch.Tensor, real_embedding: tor
     Returns:
         FID score
     """
+    device = real_embedding.device
     real_mean, real_cov = stats(real_embedding)
     fake_mean, fake_cov = stats(fake_embedding)
+    fake_mean, fake_cov = fake_mean.to(device), fake_cov.to(device)
 
     fid = torch.norm(real_mean - fake_mean, p=2) + \
         torch.trace(real_cov) + torch.trace(fake_cov) - 2 * torch.trace(sqrtm(real_cov @ fake_cov))
