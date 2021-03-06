@@ -4,12 +4,12 @@ import torch
 import torch.cuda
 import torchvision.utils
 
-from functional import frechet_inception_distance
+from utils.functional import frechet_inception_distance
 from model.improved_video_gan import Generator, init_weights, Discriminator
 
 
 CHECKPOINT_FILENAME = 'checkpoint.model'
-SAVE_INTERVAL = 10
+SAVE_INTERVAL = 1
 SAMPLE_INTERVAL = 10
 FID_INTERVAL = 1
 GRADIENT_MULTIPLIER = 10.
@@ -160,6 +160,10 @@ class ImprovedVideoGAN(object):
                     fake_batch = self.optimize(batch, DISCRIMINATOR)
                 else:
                     fake_batch = self.optimize(batch, GENERATOR)
+                if (self.step + 1) % SAMPLE_INTERVAL == 0:
+                    self._save_batch_as_gif(fake_batch, name=f'{self.step:05d}-fake', upload=True)
+                if (self.step + 1) % (SAMPLE_INTERVAL * 10) == 0:
+                    self._save_batch_as_gif(batch, name=f'{self.step:05d}-real', upload=True)
 
             # noinspection PyUnboundLocalVariable
             self._log_epoch_end(batch, fake_batch)
@@ -182,8 +186,6 @@ class ImprovedVideoGAN(object):
         self._experiment.log_epoch_end(self.epoch)
         if (self.epoch + 1) % SAVE_INTERVAL == 0:
             self.save()
-        if (self.epoch + 1) % SAMPLE_INTERVAL == 0:
-            self._save_batch_as_gif(fake_batch, name=f'{self.epoch:05d}-fake', upload=True)
         if (self.epoch + 1) % FID_INTERVAL == 0:
             self._log_fid(batch, fake_batch)
 
@@ -381,7 +383,7 @@ class ImprovedVideoGAN(object):
         # self.discriminator_optimizer.zero_grad()
 
     def _calc_grad_penalty(self, real_data, fake_data):
-        alpha = torch.rand(real_data.size(0), 1)
+        alpha = torch.rand(real_data.size(0), 1, 1, 1, 1)
         alpha = alpha.expand(real_data.size())
         alpha = alpha.to(self.device)
 
