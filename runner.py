@@ -4,11 +4,14 @@ import torch
 import torch.cuda
 import torchvision.utils
 
+from functional import frechet_inception_distance
 from model.improved_video_gan import Generator, init_weights, Discriminator
+
 
 CHECKPOINT_FILENAME = 'checkpoint.model'
 SAVE_INTERVAL = 10
 SAMPLE_INTERVAL = 10
+FID_INTERVAL = 1
 GRADIENT_MULTIPLIER = 10.
 DISCRIMINATOR = 'discriminator'
 GENERATOR = 'generator'
@@ -66,6 +69,9 @@ class ImprovedVideoGAN(object):
         else:
             self.generator = self.get_generator()
             self.discriminator = self.get_discriminator()
+
+        self._activation = {}
+        self._register_hooks()
 
         self.discriminator_optimizer = self._make_optimizer(self.discriminator)
         self.generator_optimizer = self._make_optimizer(self.generator)
@@ -145,8 +151,8 @@ class ImprovedVideoGAN(object):
         """
         Main training loop. Run this to train the models.
         """
-        for epoch in range(self.epoch, self.epoch + self.n_epochs):
-            self._experiment.set_epoch(epoch)
+        for self.epoch in range(self.epoch, self.epoch + self.n_epochs):
+            self._experiment.set_epoch(self.epoch)
             for _, (batch, lbl) in enumerate(self.dataloader):
                 self._increment_total_step()
                 batch = batch.to(self.device)
@@ -155,16 +161,66 @@ class ImprovedVideoGAN(object):
                 else:
                     fake_batch = self.optimize(batch, GENERATOR)
 
-            # Log and save checkpoint
-            self._experiment.log_epoch_end(epoch)
-            if (epoch + 1) % SAVE_INTERVAL == 0:
-                self.save()
-            if (epoch + 1) % SAMPLE_INTERVAL == 0:
-                self._save_batch_as_gif(fake_batch, name=f'{epoch:05d}-fake', upload=True)
+            # noinspection PyUnboundLocalVariable
+            self._log_epoch_end(batch, fake_batch)
         self.save()
         self._save_batch_as_gif(batch, name=f'final-real', upload=True)
         self._save_batch_as_gif(fake_batch, name=f'final-fake', upload=True)
         self.log_model()
+
+    def _log_epoch_end(self, batch, fake_batch):
+        """
+        Perform logging tasks for the end of an epoch.
+
+        Args:
+            batch:
+            fake_batch:
+
+        Returns:
+
+        """
+        self._experiment.log_epoch_end(self.epoch)
+        if (self.epoch + 1) % SAVE_INTERVAL == 0:
+            self.save()
+        if (self.epoch + 1) % SAMPLE_INTERVAL == 0:
+            self._save_batch_as_gif(fake_batch, name=f'{self.epoch:05d}-fake', upload=True)
+        if (self.epoch + 1) % FID_INTERVAL == 0:
+            self._log_fid(batch, fake_batch)
+
+    def _log_fid(self, real_batch: torch.Tensor, fake_batch: torch.Tensor) -> None:
+        """
+        Log the Frechet inception distance
+        Choose conv5 because the dimensionality of conv4 is much too high to compute covariance efficiently.
+
+        Args:
+            real_batch: batch of real images
+            fake_batch: batch of generated images
+
+        Returns:
+            None
+        """
+        batch_size = real_batch.shape[0]
+        self.discriminator.requires_grad_(False)
+        self.discriminator(real_batch)
+        real_embedding = self._activation['d_conv5'].reshape(batch_size, -1)
+        self.discriminator(fake_batch)
+        fake_embedding = self._activation['d_conv5'].reshape(batch_size, -1)
+        self.discriminator.requires_grad_(True)
+
+        fid = frechet_inception_distance(fake_embedding, real_embedding)
+        self._experiment.log_metric('fid', fid)
+
+    def _register_hooks(self):
+        """
+        Register hooks on models. Should be called before `self.to` (before models get wrapped in DataParallel)
+        """
+        def get_activation(name):
+            def hook(model, input, output):
+                self._activation[name] = output.detach()
+
+            return hook
+
+        self.discriminator.conv5.register_forward_hook(get_activation('d_conv5'))
 
     def _save_batch_as_gif(self, batch, name='', upload=False):
         grid_length = 5

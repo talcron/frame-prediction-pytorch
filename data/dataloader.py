@@ -4,8 +4,10 @@ from functools import lru_cache
 import cv2
 import numpy as np
 import torch
+import torchvision.transforms
 from torch.utils.data import Dataset
-import torchvision.io
+import torch.nn.functional as F
+from PIL import Image
 
 UCF101 = "UCF-101"
 UCF_SPORTS = "ucf_sports"
@@ -54,6 +56,7 @@ class VideoDataset(Dataset, ABC):
             shape: The frame shape. Much match video encoding
             cache_dataset: if true, store the uint8 videos in memory.
         """
+        self.unnormalized_max = 255.
         self.num_frames = kwargs.get('num_frames', 32)
         self.shape = kwargs.get('shape', (64, 64))
         self.keep_in_memory = kwargs.get('cache_dataset', False)
@@ -76,9 +79,8 @@ class VideoDataset(Dataset, ABC):
     def __len__(self):
         return len(self.data)
 
-    @staticmethod
-    def normalize(video):
-        return (video / (255. / 2.)) - 1.
+    def normalize(self, video):
+        return (video / (self.unnormalized_max / 2.)) - 1.
 
     @staticmethod
     def un_normalize(video):
@@ -153,12 +155,40 @@ class UcfDataset(VideoDataset):
 class TinyvideoDataset(VideoDataset):
     def __init__(self, *args, **kwargs):
         super(TinyvideoDataset, self).__init__(*args, **kwargs)
-        self.transform = torchvision.transforms.Resize(self.shape)
+        self.unnormalized_max = 1.
+        self.to_tensor = torchvision.transforms.ToTensor()
+        self.to_pil = torchvision.transforms.ToPILImage()
 
-    def _read_video(self, fn):
-        video = torchvision.io.read_image(fn)
-        video = video.reshape([3, self.num_frames, *self.shape])
+    def _read_video(self, fn: str) -> torch.Tensor:
+        video = Image.open(fn)
+        if video.size[0] != self.shape[0]:
+            video = self._downscale_video(video, fn)
+        else:
+            video = self.to_tensor(video)
+            video = video.reshape([3, self.num_frames, *self.shape])
+        return video
+
+    def _downscale_video(self, video: Image, fn: str) -> torch.Tensor:
+        size = video.size[0]
+        video = self.to_tensor(video)
+        n_frames = video.shape[1] // size
+        video = video.reshape([3, -1, size, size])
+        if n_frames < self.num_frames:
+            new_video = torch.zeros([3, self.num_frames, size, size])
+            new_video[:, :n_frames] = video
+            new_video[:, n_frames:] = torch.unsqueeze(video[:, -1], dim=1)
+            video = new_video
+        video = video[:, :self.num_frames]
+        video = F.interpolate(video, size=self.shape)
+        try:
+            self.to_pil(video.reshape([3, self.num_frames * self.shape[0], self.shape[1]])).save(fn)
+        except PermissionError:
+            pass
+
         return video
 
     def _label_from_path(self, fn):
-        return None
+        """
+        These videos are unlabeled, so we return an empty string.
+        """
+        return ''

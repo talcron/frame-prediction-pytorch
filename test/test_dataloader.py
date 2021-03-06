@@ -7,7 +7,8 @@ import matplotlib.pyplot as plt
 from data.dataloader import DatasetFactory
 
 UCF_INDEX_FILE = 'data/mjpeg/index.txt'
-TINYVIDEO_INDEX_FILE = 'data/tinyvideo/index.txt'
+TINYVIDEO_INDEX_FILE = 'data/tinyvideo/processed-index.txt'
+TINYVIDEO_UNPROCESSED_INDEX_FILE = 'data/tinyvideo-unprocessed/index.txt'
 
 
 class TestUcfDataLoader(unittest.TestCase):
@@ -36,6 +37,11 @@ class TestUcfDataLoader(unittest.TestCase):
 class TestTinyvideoDataLoader(TestUcfDataLoader):
     def setUp(self) -> None:
         self.dataset = DatasetFactory.get_dataset(TINYVIDEO_INDEX_FILE, dataset='tinyvideo')
+
+
+class TestUnprocessedTinyvideoDataLoader(TestUcfDataLoader):
+    def setUp(self) -> None:
+        self.dataset = DatasetFactory.get_dataset(TINYVIDEO_UNPROCESSED_INDEX_FILE, dataset='tinyvideo')
 
 
 if __name__ == '__main__':
