@@ -1,18 +1,20 @@
 import os
-import sys
+
 import torch
 import torch.cuda
 import torchvision.utils
 
-from utils.functional import frechet_inception_distance
 from model.improved_video_gan import Generator, init_weights, Discriminator
-
+from utils.functional import frechet_inception_distance
 
 CHECKPOINT_FILENAME = 'checkpoint.model'
-SAVE_INTERVAL = 1
-SAMPLE_INTERVAL = 10
-FID_INTERVAL = 1
+
+SAVE_INTERVAL = 1      # epochs
+SAMPLE_INTERVAL = 10  # steps
+FID_INTERVAL = 10      # steps
 GRADIENT_MULTIPLIER = 10.
+
+
 DISCRIMINATOR = 'discriminator'
 GENERATOR = 'generator'
 BETA2 = 0.999
@@ -160,34 +162,36 @@ class ImprovedVideoGAN(object):
                     fake_batch = self.optimize(batch, DISCRIMINATOR)
                 else:
                     fake_batch = self.optimize(batch, GENERATOR)
-                if (self.step + 1) % SAMPLE_INTERVAL == 0:
-                    self._save_batch_as_gif(fake_batch, name=f'{self.step:05d}-fake', upload=True)
-                if (self.step + 1) % (SAMPLE_INTERVAL * 10) == 0:
-                    self._save_batch_as_gif(batch, name=f'{self.step:05d}-real', upload=True)
+                self._interval_log(batch, fake_batch)
 
-            # noinspection PyUnboundLocalVariable
-            self._log_epoch_end(batch, fake_batch)
+        self._epoch_end_log()
         self.save()
         self._save_batch_as_gif(batch, name=f'final-real', upload=True)
         self._save_batch_as_gif(fake_batch, name=f'final-fake', upload=True)
         self.log_model()
 
-    def _log_epoch_end(self, batch, fake_batch):
+    def _epoch_end_log(self):
         """
-        Perform logging tasks for the end of an epoch.
-
-        Args:
-            batch:
-            fake_batch:
-
-        Returns:
-
+        Save checkpoint and log epoch end
         """
         self._experiment.log_epoch_end(self.epoch)
         if (self.epoch + 1) % SAVE_INTERVAL == 0:
             self.save()
+
+    def _interval_log(self, batch: torch.Tensor, fake_batch: torch.Tensor):
+        """
+        Perform logging tasks for the end of an epoch.
+
+        Args:
+            batch: batch of real data
+            fake_batch: batch of generated data
+        """
         if (self.epoch + 1) % FID_INTERVAL == 0:
             self._log_fid(batch, fake_batch)
+        if (self.step + 1) % SAMPLE_INTERVAL == 0:
+            self._save_batch_as_gif(fake_batch, name=f'{self.step:05d}-fake', upload=True)
+        if (self.step + 1) % (SAMPLE_INTERVAL * 10) == 0:
+            self._save_batch_as_gif(batch, name=f'{self.step:05d}-real', upload=True)
 
     def _log_fid(self, real_batch: torch.Tensor, fake_batch: torch.Tensor) -> None:
         """
