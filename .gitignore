@@ -6,3 +6,5 @@ __pycache__/
 extra/
 checkpoint.model
 filescripts/
+tinyvideo/
+UCF-101/

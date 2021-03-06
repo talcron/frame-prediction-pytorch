@@ -64,7 +64,7 @@ class Generator(nn.Module):
 class Discriminator(nn.Module):
     """Discriminator for improved_video_gan model"""
 
-    def __init__(self, spec_norm=False):
+    def __init__(self, spec_norm=False, no_gp=False):
         super(Discriminator, self).__init__()
 
         self.conv1 = nn.Conv3d(in_channels=3, out_channels=64,
@@ -97,10 +97,11 @@ class Discriminator(nn.Module):
             self.conv4 = torch.nn.utils.spectral_norm(self.conv4)
             self.conv5 = torch.nn.utils.spectral_norm(self.conv5)
             self.linear = torch.nn.utils.spectral_norm(self.linear)
-            self.ln1 = torch.nn.Identity()
-            self.ln2 = torch.nn.Identity()
-            self.ln3 = torch.nn.Identity()
-            self.ln4 = torch.nn.Identity()
+            if not no_gp:
+                self.ln1 = torch.nn.Identity()
+                self.ln2 = torch.nn.Identity()
+                self.ln3 = torch.nn.Identity()
+                self.ln4 = torch.nn.Identity()
 
 
     def forward(self, x):

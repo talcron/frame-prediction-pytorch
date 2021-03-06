@@ -62,7 +62,9 @@ def get_parser():
     parser.add_argument('--cache-dataset', default=False, action='store_true',
                         help='Keep all data in memory (default: False if switch is absent)')
     parser.add_argument('--spec-norm', default=False, action='store_true',
-                        help='set to True to use spectral normalization in place of gradient penalty')
+                        help='set to True to use spectral normalization')
+    parser.add_argument('--no-gp', default=False, action='store_true',
+                        help='set to True to stop using Gradient Penalty')
 
     return parser
 
@@ -131,6 +133,7 @@ def main(args):
         critic_iterations=5,
         out_dir=os.path.join(args.save_dir, exp_name),
         spec_norm=args.spec_norm,
+        no_gp=args.no_gp,
     )
 
     if args.resume != '':

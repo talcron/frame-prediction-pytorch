@@ -1,5 +1,5 @@
 import os
-
+import sys
 import torch
 import torch.cuda
 import torchvision.utils
@@ -33,7 +33,8 @@ class ImprovedVideoGAN(object):
             beta1=0.5,
             critic_iterations=5,
             out_dir='extra',
-            spec_norm=False
+            spec_norm=False,
+            no_gp=False
     ):
         if not os.path.exists(out_dir):
             os.mkdir(out_dir)
@@ -51,6 +52,9 @@ class ImprovedVideoGAN(object):
         self.z_dim = z_dim
         self.num_frames = num_frames
         self.spec_norm = spec_norm
+        self.no_gp = no_gp
+        if not spec_norm and no_gp:
+            assert(0 == 1), 'Can\'t remove gradient penalty AND spectral normalization; Lipschitz-1 can\'t be enforced'
 
         self.step = 0
         self.epoch = 0
@@ -133,7 +137,7 @@ class ImprovedVideoGAN(object):
         Returns:
             discriminator model
         """
-        d_net = Discriminator(self.spec_norm)
+        d_net = Discriminator(self.spec_norm, self.no_gp)
         d_net.apply(init_weights)
         return d_net
 
@@ -304,11 +308,12 @@ class ImprovedVideoGAN(object):
         # IDEA USE ZERO CENTERED GRADIENT PENALTY
         # IDEA USE DIFFERENT GRADIENT PENALTY CONSTANT
         # IDEA USE ADAM WEIGHT DECAY OF 0.001 (AS RECOMMENDED IN IMPROVED TRAINING OF WGAN PAPER)
+        # IDEA USE REGULARIZING TERM FOR D LOSS TO PREVENT DRIFT FROM 0 (L* = L + cE[D(x)**2]), c=0.001
+        # IDEA COMBINE GP WITH SN (REMOVE LN, as in http://proceedings.mlr.press/v97/kurach19a/kurach19a.pdf#page=1&zoom=100,0,0)
 
-        if not self.spec_norm:
+        if not self.no_gp:
             gradient_penalty = self._calc_grad_penalty(batch, fake_videos)
             gradient_penalty.backward()
-            # d_cost_final = d_cost + GRADIENT_MULTIPLIER * gradient_penalty
             d_cost_final = d_cost + gradient_penalty
             self._experiment.log_metric('grad_penalty', gradient_penalty)
         else:
