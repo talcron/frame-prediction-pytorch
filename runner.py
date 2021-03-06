@@ -186,7 +186,7 @@ class ImprovedVideoGAN(object):
             batch: batch of real data
             fake_batch: batch of generated data
         """
-        if (self.epoch + 1) % FID_INTERVAL == 0:
+        if (self.step + 1) % FID_INTERVAL == 0:
             self._log_fid(batch, fake_batch)
         if (self.step + 1) % SAMPLE_INTERVAL == 0:
             self._save_batch_as_gif(fake_batch, name=f'{self.step:05d}-fake', upload=True)
