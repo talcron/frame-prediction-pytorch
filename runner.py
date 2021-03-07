@@ -9,8 +9,8 @@ from utils.functional import frechet_inception_distance
 
 CHECKPOINT_FILENAME = 'checkpoint.model'
 
-SAVE_INTERVAL = 1     # epochs
-SAMPLE_INTERVAL = 10  # steps
+SAVE_INTERVAL = 1000     # steps
+SAMPLE_INTERVAL = 100  # steps
 FID_INTERVAL = 100    # steps
 GRADIENT_MULTIPLIER = 10.
 
@@ -163,20 +163,12 @@ class ImprovedVideoGAN(object):
                 else:
                     fake_batch = self.optimize(batch, GENERATOR)
                 self._interval_log(batch, fake_batch)
+            self._experiment.log_epoch_end(self.epoch)
 
-        self._epoch_end_log()
         self.save()
         self._save_batch_as_gif(batch, name=f'final-real', upload=True)
         self._save_batch_as_gif(fake_batch, name=f'final-fake', upload=True)
         self.log_model()
-
-    def _epoch_end_log(self):
-        """
-        Save checkpoint and log epoch end
-        """
-        self._experiment.log_epoch_end(self.epoch)
-        if (self.epoch + 1) % SAVE_INTERVAL == 0:
-            self.save()
 
     def _interval_log(self, batch: torch.Tensor, fake_batch: torch.Tensor):
         """
@@ -192,6 +184,8 @@ class ImprovedVideoGAN(object):
             self._save_batch_as_gif(fake_batch, name=f'{self.step:05d}-fake', upload=True)
         if (self.step + 1) % (SAMPLE_INTERVAL * 10) == 0:
             self._save_batch_as_gif(batch, name=f'{self.step:05d}-real', upload=True)
+        if (self.step + 1) % SAVE_INTERVAL == 0:
+            self.save()
 
     def _log_fid(self, real_batch: torch.Tensor, fake_batch: torch.Tensor) -> None:
         """
