@@ -338,7 +338,7 @@ class ImprovedVideoGAN(object):
 
         if (self.step + 1) % (self.critic_iterations + 1) == 1:
             self._experiment.log_metric('g_cost', g_cost)
-        self._experiment.log_metric('d_fake', g_cost)
+        self._experiment.log_metric('d_fake', -g_cost)
         self._experiment.log_metric('d_cost', d_cost)
         self._experiment.log_metric('d_real', torch.mean(d_real))
 
