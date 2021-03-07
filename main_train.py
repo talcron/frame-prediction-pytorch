@@ -65,6 +65,8 @@ def get_parser():
                         help='set to True to use spectral normalization')
     parser.add_argument('--no-gp', default=False, action='store_true',
                         help='set to True to stop using Gradient Penalty')
+    parser.add_argument('--drift-penalty', default=False, action='store_true',
+                        help='set to True to use small drift penalty (prevents discriminator loss drifting)')
 
     return parser
 
@@ -134,6 +136,7 @@ def main(args):
         out_dir=os.path.join(args.save_dir, exp_name),
         spec_norm=args.spec_norm,
         no_gp=args.no_gp,
+        drift_penalty=args.drift_penalty,
     )
 
     if args.resume != '':
@@ -141,7 +144,7 @@ def main(args):
 
     try:
         GAN.train()
-    except Exception as e:
+    except BaseException as e:
         GAN.save()
         raise e
 

@@ -9,10 +9,11 @@ from utils.functional import frechet_inception_distance
 
 CHECKPOINT_FILENAME = 'checkpoint.model'
 
-SAVE_INTERVAL = 1     # epochs
-SAMPLE_INTERVAL = 10  # steps
+SAVE_INTERVAL = 1000     # steps
+SAMPLE_INTERVAL = 100  # steps
 FID_INTERVAL = 100    # steps
 GRADIENT_MULTIPLIER = 10.
+EPSILON_CONSTANT = 0.0001
 
 
 DISCRIMINATOR = 'discriminator'
@@ -39,7 +40,8 @@ class ImprovedVideoGAN(object):
             critic_iterations=5,
             out_dir='extra',
             spec_norm=False,
-            no_gp=False
+            no_gp=False,
+            drift_penalty=False
     ):
         if not os.path.exists(out_dir):
             os.mkdir(out_dir)
@@ -58,9 +60,11 @@ class ImprovedVideoGAN(object):
         self.num_frames = num_frames
         self.spec_norm = spec_norm
         self.no_gp = no_gp
+        self.drift_penalty = drift_penalty
         if not spec_norm and no_gp:
             assert(0 == 1), 'Can\'t remove gradient penalty AND spectral normalization; Lipschitz-1 can\'t be enforced'
-
+        if drift_penalty and no_gp:
+            assert(0 == 1), 'Does not make sense to use drift penalty without also using gradient penalty'
         self.step = 0
         self.epoch = 0
         self.checkpoint_file = os.path.join(self.out_dir, CHECKPOINT_FILENAME)
@@ -163,20 +167,12 @@ class ImprovedVideoGAN(object):
                 else:
                     fake_batch = self.optimize(batch, GENERATOR)
                 self._interval_log(batch, fake_batch)
+            self._experiment.log_epoch_end(self.epoch)
 
-        self._epoch_end_log()
         self.save()
         self._save_batch_as_gif(batch, name=f'final-real', upload=True)
         self._save_batch_as_gif(fake_batch, name=f'final-fake', upload=True)
         self.log_model()
-
-    def _epoch_end_log(self):
-        """
-        Save checkpoint and log epoch end
-        """
-        self._experiment.log_epoch_end(self.epoch)
-        if (self.epoch + 1) % SAVE_INTERVAL == 0:
-            self.save()
 
     def _interval_log(self, batch: torch.Tensor, fake_batch: torch.Tensor):
         """
@@ -192,6 +188,8 @@ class ImprovedVideoGAN(object):
             self._save_batch_as_gif(fake_batch, name=f'{self.step:05d}-fake', upload=True)
         if (self.step + 1) % (SAMPLE_INTERVAL * 10) == 0:
             self._save_batch_as_gif(batch, name=f'{self.step:05d}-real', upload=True)
+        if (self.step + 1) % SAVE_INTERVAL == 0:
+            self.save()
 
     def _log_fid(self, real_batch: torch.Tensor, fake_batch: torch.Tensor) -> None:
         """
@@ -377,6 +375,10 @@ class ImprovedVideoGAN(object):
             gradient_penalty = self._calc_grad_penalty(batch, fake_videos)
             gradient_penalty.backward()
             d_cost_final = d_cost + gradient_penalty
+            if self.drift_penalty:
+                epsilon_penalty = (d_real ** 2) * EPSILON_CONSTANT
+                epsilon_penalty.backward(mone)
+                d_cost_final += epsilon_penalty
             self._experiment.log_metric('grad_penalty', gradient_penalty)
         else:
             d_cost_final = d_cost
