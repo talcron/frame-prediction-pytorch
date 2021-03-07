@@ -377,7 +377,7 @@ class ImprovedVideoGAN(object):
             d_cost_final = d_cost + gradient_penalty
             if self.drift_penalty:
                 epsilon_penalty = (d_real ** 2) * EPSILON_CONSTANT
-                epsilon_penalty.backward(mone)
+                epsilon_penalty.backward()
                 d_cost_final += epsilon_penalty
             self._experiment.log_metric('grad_penalty', gradient_penalty)
         else:
