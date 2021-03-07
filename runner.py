@@ -333,6 +333,7 @@ class ImprovedVideoGAN(object):
 
         d_fake = self.discriminator(fake_videos)
         d_real = self.discriminator(batch)
+        d_real_copy = d_real.clone()
         g_cost = -torch.mean(d_fake)
         d_cost = -g_cost - torch.mean(d_real)
 
@@ -376,7 +377,7 @@ class ImprovedVideoGAN(object):
             gradient_penalty.backward()
             d_cost_final = d_cost + gradient_penalty
             if self.drift_penalty:
-                epsilon_penalty = (d_real ** 2) * EPSILON_CONSTANT
+                epsilon_penalty = torch.mean(d_real_copy ** 2, dim=0) * EPSILON_CONSTANT
                 epsilon_penalty.backward()
                 d_cost_final += epsilon_penalty
             self._experiment.log_metric('grad_penalty', gradient_penalty)
