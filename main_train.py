@@ -100,10 +100,20 @@ def get_experiment(args):
 def main(args):
     experiment = get_experiment(args)
     assert os.path.exists(args.save_dir), f'save-dir {args.save_dir} does not exist'
+    assert torch.cuda.device_count() >= args.num_gpu, f'You have requested more gpus than are available'
 
-    # Check if Output Directory Exists
+    if isinstance(args.exp_name, list):
+        exp_name = '_'.join(args.exp_name)
+    else:
+        exp_name = args.exp_name
+    out_dir = os.path.join(args.save_dir, exp_name)
+
     if not os.path.isdir(args.save_dir):
         os.makedirs(args.save_dir)
+    if not os.path.isdir(out_dir):
+        os.makedirs(out_dir)
+    experiment.log_text(f"{sys.executable} {' '.join(sys.argv)} --resume {os.path.join(out_dir, 'checkpoint.model')} "
+                        f"--exp-key {experiment.id}")
 
     if args.cache_dataset and args.workers > 0:
         ResourceWarning("You are using multiple workers and keeping data in memory, this will multiply memory usage"
@@ -116,10 +126,6 @@ def main(args):
         num_workers=args.workers,
         drop_last=True,
     )
-    if isinstance(args.exp_name, list):
-        exp_name = '_'.join(args.exp_name)
-    else:
-        exp_name = args.exp_name
 
     GAN = ImprovedVideoGAN(
         dataloader=dataloader,
@@ -133,7 +139,7 @@ def main(args):
         z_dim=args.zdim,
         beta1=args.beta1,
         critic_iterations=5,
-        out_dir=os.path.join(args.save_dir, exp_name),
+        out_dir=out_dir,
         spec_norm=args.spec_norm,
         no_gp=args.no_gp,
         drift_penalty=args.drift_penalty,
@@ -147,6 +153,8 @@ def main(args):
     except BaseException as e:
         GAN.save()
         raise e
+    finally:
+        experiment.send_notification(f"Experiment {exp_name} is complete")
 
 
 if __name__ == '__main__':
