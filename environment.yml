@@ -5,9 +5,10 @@ channels:
   - comet_ml
   - conda-forge
 dependencies:
-  - python 3.8.*
-  - pytorch
   - cudatoolkit=10.1
+  - cudnn=7
+  - nccl
+  - pytorch
   - torchvision
   - comet_ml
   - matplotlib
