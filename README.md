@@ -25,6 +25,8 @@ opencv
 
 ### Environment
 
+#### Conda
+
 We recommend using a `conda` environment. Once you have conda installed (look at 
 [miniconda](https://docs.conda.io/en/latest/miniconda.html)). Install with:
 
@@ -32,6 +34,16 @@ We recommend using a `conda` environment. Once you have conda installed (look at
 conda create env -f environment.yml
 conda activate torch
 ```
+
+#### Docker
+
+Get the Docker image used to run this:
+
+```
+docker pull ianpegg9/torch:tf
+```
+
+The included `Dockerfile` contains the spec for this image.
 
 ### CometML
 
