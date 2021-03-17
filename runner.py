@@ -7,11 +7,20 @@ import torchvision.utils
 from model.improved_video_gan import Generator, init_weights, Discriminator
 from utils.functional import frechet_inception_distance
 
+# These are only required for evaluation, so bypass tensorflow deps if not available.
+try:
+    import tensorflow.compat.v1 as tf
+    import fvd.frechet_video_distance as fvd
+    import fvd.utils as utils
+except ImportError:
+    pass
+
 CHECKPOINT_FILENAME = 'checkpoint.model'
 
 SAVE_INTERVAL = 1000     # steps
 SAMPLE_INTERVAL = 100  # steps
 FID_INTERVAL = 100    # steps
+FVD_INTERVAL = 100    # steps
 GRADIENT_MULTIPLIER = 10.
 EPSILON_CONSTANT = 0.0001
 
@@ -174,6 +183,36 @@ class ImprovedVideoGAN(object):
         self._save_batch_as_gif(fake_batch, name=f'final-fake', upload=True)
         self.log_model()
 
+    def evaluate(self) -> float:
+        with tf.Graph().as_default():
+            real = utils.torch_to_tf(self.sample_real()[:16])
+            fake = utils.torch_to_tf(self.sample_fake()[:16])
+
+            result = fvd.calculate_fvd(
+                fvd.create_id3_embedding(fvd.preprocess(real, (224, 224))),  # (224, 224) required to match model input
+                fvd.create_id3_embedding(fvd.preprocess(fake, (224, 224))))
+
+            with tf.Session() as sess:
+                sess.run(tf.global_variables_initializer())
+                sess.run(tf.tables_initializer())
+                fvd_score = sess.run(result)
+                print("FVD is: %.2f." % fvd_score)
+        self._experiment.log_metric('fvd', fvd_score)
+        return fvd_score
+
+    def sample_fake(self):
+        """
+        Generate samples of fake videos equal to the batch size
+        """
+        return self._generate_samples(self.batch_size)
+
+    def sample_real(self) -> torch.FloatTensor:
+        """
+        Generate samples of real videos equal to the batch size
+        """
+        video, _ = next(iter(self.dataloader))
+        return video
+
     def _interval_log(self, batch: torch.Tensor, fake_batch: torch.Tensor):
         """
         Perform logging tasks for the end of an epoch.
@@ -182,8 +221,8 @@ class ImprovedVideoGAN(object):
             batch: batch of real data
             fake_batch: batch of generated data
         """
-        if (self.step + 1) % FID_INTERVAL == 0:
-            self._log_fid(batch, fake_batch)
+        if (self.step + 1) % FVD_INTERVAL == 0:
+            self.evaluate()
         if (self.step + 1) % SAMPLE_INTERVAL == 0:
             self._save_batch_as_gif(fake_batch, name=f'{self.step:05d}-fake', upload=True)
         if (self.step + 1) % (SAMPLE_INTERVAL * 10) == 0:
@@ -321,8 +360,7 @@ class ImprovedVideoGAN(object):
             self.discriminator.requires_grad = True
         elif model_type == DISCRIMINATOR:
             self.generator.requires_grad = False
-            z_vec = torch.rand((batch.shape[0], self.z_dim), device=self.device)
-            fake_videos = self.generator(z_vec)
+            fake_videos = self._generate_samples(batch.shape[0])
             self._optimize_discriminator(batch, fake_videos.detach())
             self.generator.requires_grad = True
         return fake_videos
@@ -412,8 +450,7 @@ class ImprovedVideoGAN(object):
 
         self.generator.zero_grad()
 
-        z_vec = torch.rand((b_size, self.z_dim), device=self.device)
-        fake_videos = self.generator(z_vec)
+        fake_videos = self._generate_samples(b_size)
 
         d_fake = self.discriminator(fake_videos)
         g_cost = -torch.mean(d_fake)
@@ -424,4 +461,18 @@ class ImprovedVideoGAN(object):
         self._experiment.log_metric('d_fake', g_cost)
         # self.generator_optimizer.zero_grad()
 
+        return fake_videos
+
+    def _generate_samples(self, n):
+        """
+        Generate n fake video samples
+        
+        Args:
+            n: batch size 
+
+        Returns:
+            batch of n fake videos
+        """
+        z_vec = torch.rand((n, self.z_dim), device=self.device)
+        fake_videos = self.generator(z_vec)
         return fake_videos

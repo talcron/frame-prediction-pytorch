@@ -49,7 +49,7 @@ spec:
         valueFrom:
           fieldRef:
             fieldPath: spec.nodeName
-    image: ianpegg9/torch:latest  # Docker image defined above
+    image: ianpegg9/torch:tf  # Docker image defined above
     args: {args}
     workingDir: {working_dir}
     ports:

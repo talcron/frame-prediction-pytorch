@@ -161,6 +161,13 @@ def main(args):
     if args.resume != '':
         GAN.load(args.resume)
 
+    if not args.evaluate:
+        train(GAN, exp_name, experiment)
+    else:
+        GAN.evaluate()
+
+
+def train(GAN, exp_name, experiment):
     try:
         GAN.train()
     except BaseException as e:
