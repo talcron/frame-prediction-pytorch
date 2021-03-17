@@ -3,7 +3,7 @@ import pytest
 import torch
 from PIL import Image
 
-from fid.pytorch_fid import fid_score, inception
+from fvd.pytorch_fid import fid_score, inception
 
 
 @pytest.fixture

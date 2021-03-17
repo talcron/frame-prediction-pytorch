@@ -39,7 +39,7 @@ def preprocess(videos, target_resolution):
         videos: <T>[batch_size, num_frames, height, width, depth] The videos to be
             preprocessed. We don't care about the specific dtype of the videos, it can
             be anything that tf.image.resize_bilinear accepts. Values are expected to
-            be in the range 0-255.
+            be in [-1, 1].
         target_resolution: (width, height): target video resolution
 
     Returns:
@@ -50,7 +50,7 @@ def preprocess(videos, target_resolution):
     resized_videos = tf.image.resize_bilinear(all_frames, size=target_resolution)
     target_shape = [videos_shape[0], -1] + list(target_resolution) + [3]
     output_videos = tf.reshape(resized_videos, target_shape)
-    scaled_videos = 2. * tf.cast(output_videos, tf.float32) / 255. - 1
+    scaled_videos = tf.cast(output_videos, tf.float32)
     return scaled_videos
 
 
@@ -115,7 +115,7 @@ def create_id3_embedding(videos):
     # on graph-execution time, it will insert the tensor (with wrong shape) into
     # the graph. This is why we need the following assert.
     video_batch_size = int(videos.shape[0])
-    assert video_batch_size in [batch_size, -1, None], "Invalid batch size"
+    assert video_batch_size in [batch_size, -1, None], f"Invalid batch size {video_batch_size}"
     tensor_name = module_scope + "RGB/inception_i3d/Mean:0"
     if not _is_in_graph(tensor_name):
         i3d_model = hub.Module(module_spec, name=module_name)

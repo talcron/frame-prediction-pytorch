@@ -24,7 +24,7 @@ from __future__ import print_function
 
 # noinspection PyUnresolvedReferences
 import tensorflow.compat.v1 as tf
-import fid.frechet_video_distance as fvd
+import fvd.frechet_video_distance as fvd
 
 # Number of videos must be divisible by 16.
 NUMBER_OF_VIDEOS = 16

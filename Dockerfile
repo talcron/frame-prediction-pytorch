@@ -31,3 +31,7 @@ ADD environment.yml /tmp/environment.yml
 RUN conda env create --file /tmp/environment.yml
 RUN conda init bash && echo "source activate torch" >> ~/.bashrc
 ENV PATH /opt/conda/envs/torch/bin:$PATH
+
+# edit tensorflow
+RUN sed -i 's/np.prod(shape)/tf.math.reduce_prod(shape)/' /opt/conda/envs/torch/lib/python3.8/site-packages/tensorflow/python/ops/array_ops.py
+RUN sed -i '47 a import tensorflow as tf' /opt/conda/envs/torch/lib/python3.8/site-packages/tensorflow/python/ops/array_ops.py

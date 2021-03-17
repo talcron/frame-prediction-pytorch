@@ -174,6 +174,19 @@ class ImprovedVideoGAN(object):
         self._save_batch_as_gif(fake_batch, name=f'final-fake', upload=True)
         self.log_model()
 
+    def sample_fake(self):
+        """
+        Generate samples of fake videos equal to the batch size
+        """
+        return self._generate_samples(self.batch_size)
+
+    def sample_real(self) -> torch.Tensor:
+        """
+        Generate samples of real videos equal to the batch size
+        """
+        video, _ = next(iter(self.dataloader))
+        return video
+
     def _interval_log(self, batch: torch.Tensor, fake_batch: torch.Tensor):
         """
         Perform logging tasks for the end of an epoch.
@@ -321,8 +334,7 @@ class ImprovedVideoGAN(object):
             self.discriminator.requires_grad = True
         elif model_type == DISCRIMINATOR:
             self.generator.requires_grad = False
-            z_vec = torch.rand((batch.shape[0], self.z_dim), device=self.device)
-            fake_videos = self.generator(z_vec)
+            fake_videos = self._generate_samples(batch.shape[0])
             self._optimize_discriminator(batch, fake_videos.detach())
             self.generator.requires_grad = True
         return fake_videos
@@ -412,8 +424,7 @@ class ImprovedVideoGAN(object):
 
         self.generator.zero_grad()
 
-        z_vec = torch.rand((b_size, self.z_dim), device=self.device)
-        fake_videos = self.generator(z_vec)
+        fake_videos = self._generate_samples(b_size)
 
         d_fake = self.discriminator(fake_videos)
         g_cost = -torch.mean(d_fake)
@@ -424,4 +435,18 @@ class ImprovedVideoGAN(object):
         self._experiment.log_metric('d_fake', g_cost)
         # self.generator_optimizer.zero_grad()
 
+        return fake_videos
+
+    def _generate_samples(self, n):
+        """
+        Generate n fake video samples
+        
+        Args:
+            n: batch size 
+
+        Returns:
+            batch of n fake videos
+        """
+        z_vec = torch.rand((n, self.z_dim), device=self.device)
+        fake_videos = self.generator(z_vec)
         return fake_videos

@@ -161,6 +161,36 @@ def main(args):
     if args.resume != '':
         GAN.load(args.resume)
 
+    if not args.evaluate:
+        train(GAN, exp_name, experiment)
+    else:
+        evaluate(GAN, exp_name, experiment)
+
+
+def evaluate(GAN, exp_name, experiment) -> float:
+    # noinspection PyUnresolvedReferences
+    import tensorflow.compat.v1 as tf
+    import fvd.frechet_video_distance as fvd
+    import fvd.utils as utils
+
+    with tf.Graph().as_default():
+        real = utils.torch_to_tf(GAN.sample_real())
+        fake = utils.torch_to_tf(GAN.sample_fake())
+
+        result = fvd.calculate_fvd(
+            fvd.create_id3_embedding(fvd.preprocess(real, (224, 224))),  # (224, 224) required to match model input
+            fvd.create_id3_embedding(fvd.preprocess(fake, (224, 224))))
+
+        with tf.Session() as sess:
+            sess.run(tf.global_variables_initializer())
+            sess.run(tf.tables_initializer())
+            fvd_score = sess.run(result)
+            print("FVD is: %.2f." % fvd_score)
+
+    return fvd_score
+
+
+def train(GAN, exp_name, experiment):
     try:
         GAN.train()
     except BaseException as e:
