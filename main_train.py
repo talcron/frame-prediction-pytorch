@@ -35,6 +35,10 @@ def get_parser():
                               help='set to True to stop using Gradient Penalty')
     learner_args.add_argument('--drift-penalty', default=False, action='store_true',
                               help='set to True to use small drift penalty (prevents discriminator loss drifting)')
+    learner_args.add_argument('--zero-centered', default=False, action='store_true',
+                              help='set to True to use zero-centered GP')
+    learner_args.add_argument('--one-sided', default=False, action='store_true',
+                              help='set to True to use one-sided GP')
 
     compute_args = parser.add_argument_group("Compute")
     compute_args.add_argument('-j', '--workers', default=0, type=int, metavar='N',
@@ -156,6 +160,8 @@ def main(args):
         spec_norm=args.spec_norm,
         no_gp=args.no_gp,
         drift_penalty=args.drift_penalty,
+        zero_centered=args.zero_centered,
+        one_sided=args.one_sided,
     )
 
     if args.resume != '':

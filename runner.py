@@ -9,7 +9,7 @@ from utils.functional import frechet_inception_distance
 
 CHECKPOINT_FILENAME = 'checkpoint.model'
 
-SAVE_INTERVAL = 1000     # steps
+SAVE_INTERVAL = 200     # steps
 SAMPLE_INTERVAL = 100  # steps
 FID_INTERVAL = 100    # steps
 GRADIENT_MULTIPLIER = 10.
@@ -41,7 +41,9 @@ class ImprovedVideoGAN(object):
             out_dir='extra',
             spec_norm=False,
             no_gp=False,
-            drift_penalty=False
+            drift_penalty=False,
+            zero_centered=False,
+            one_sided=False
     ):
         if not os.path.exists(out_dir):
             os.mkdir(out_dir)
@@ -61,10 +63,14 @@ class ImprovedVideoGAN(object):
         self.spec_norm = spec_norm
         self.no_gp = no_gp
         self.drift_penalty = drift_penalty
+        self.zero_centered = zero_centered
+        self.one_sided = one_sided
         if not spec_norm and no_gp:
             assert(0 == 1), 'Can\'t remove gradient penalty AND spectral normalization; Lipschitz-1 can\'t be enforced'
         if drift_penalty and no_gp:
             assert(0 == 1), 'Does not make sense to use drift penalty without also using gradient penalty'
+        if zero_centered and no_gp:
+            assert (0 == 1), 'Does not make sense to use zero-centered GP without gradient penalty'
         self.step = 0
         self.epoch = 0
         self.checkpoint_file = os.path.join(self.out_dir, CHECKPOINT_FILENAME)
@@ -185,9 +191,9 @@ class ImprovedVideoGAN(object):
         if (self.step + 1) % FID_INTERVAL == 0:
             self._log_fid(batch, fake_batch)
         if (self.step + 1) % SAMPLE_INTERVAL == 0:
-            self._save_batch_as_gif(fake_batch, name=f'{self.step:05d}-fake', upload=True)
+            self._save_batch_as_gif(fake_batch, name=f'{self.step:06d}-fake', upload=True)
         if (self.step + 1) % (SAMPLE_INTERVAL * 10) == 0:
-            self._save_batch_as_gif(batch, name=f'{self.step:05d}-real', upload=True)
+            self._save_batch_as_gif(batch, name=f'{self.step:06d}-real', upload=True)
         if (self.step + 1) % SAVE_INTERVAL == 0:
             self.save()
 
@@ -339,7 +345,7 @@ class ImprovedVideoGAN(object):
 
         if (self.step + 1) % (self.critic_iterations + 1) == 1:
             self._experiment.log_metric('g_cost', g_cost)
-        self._experiment.log_metric('d_fake', -g_cost)
+        self._experiment.log_metric('d_fake', g_cost)
         self._experiment.log_metric('d_cost', d_cost)
         self._experiment.log_metric('d_real', torch.mean(d_real))
 
@@ -362,7 +368,7 @@ class ImprovedVideoGAN(object):
         one = one.to(self.device)
         mone = mone.to(self.device)
         d_real = torch.mean(d_real, dim=0)
-        d_real.backward(mone)
+        d_real.backward(mone, retain_graph=self.drift_penalty)
         d_fake = torch.mean(d_fake, dim=0)
         d_fake.backward(one)
 
@@ -373,14 +379,15 @@ class ImprovedVideoGAN(object):
         # IDEA COMBINE GP WITH SN (REMOVE LN, as in http://proceedings.mlr.press/v97/kurach19a/kurach19a.pdf#page=1&zoom=100,0,0)
 
         if not self.no_gp:
-            gradient_penalty = self._calc_grad_penalty(batch, fake_videos)
+            gradient_penalty = self._calc_grad_penalty(batch, fake_videos, self.zero_centered, self.one_sided)
             gradient_penalty.backward()
             d_cost_final = d_cost + gradient_penalty
+            self._experiment.log_metric('grad_penalty', gradient_penalty)
             if self.drift_penalty:
                 epsilon_penalty = torch.mean(d_real_copy ** 2, dim=0) * EPSILON_CONSTANT
-                epsilon_penalty.backward()
-                d_cost_final += epsilon_penalty
-            self._experiment.log_metric('grad_penalty', gradient_penalty)
+                epsilon_penalty.backward(one)
+                d_cost_final += epsilon_penalty[0]
+                self._experiment.log_metric('drift_penalty', epsilon_penalty)
         else:
             d_cost_final = d_cost
 
@@ -389,7 +396,7 @@ class ImprovedVideoGAN(object):
         self._experiment.log_metric('d_cost_final', d_cost_final)
         # self.discriminator_optimizer.zero_grad()
 
-    def _calc_grad_penalty(self, real_data, fake_data):
+    def _calc_grad_penalty(self, real_data, fake_data, zero_centered=False, one_sided=False):
         alpha = torch.rand(real_data.size(0), 1, 1, 1, 1)
         alpha = alpha.expand(real_data.size())
         alpha = alpha.to(self.device)
@@ -404,8 +411,13 @@ class ImprovedVideoGAN(object):
         gradients = torch.autograd.grad(outputs=disc_interpolates, inputs=interpolates,
                                         grad_outputs=torch.ones(disc_interpolates.size()).to(self.device),
                                         create_graph=True, retain_graph=True, only_inputs=True)[0]
-
-        gradient_penalty = ((gradients.norm(2, dim=1) - 1) ** 2).mean() * GRADIENT_MULTIPLIER
+        if zero_centered:
+            gradient_penalty = ((gradients.norm(2, dim=1) - 0) ** 2).mean() * GRADIENT_MULTIPLIER
+        elif one_sided:
+            zero = torch.FloatTensor([0]).to(self.device)
+            gradient_penalty = (torch.maximum(gradients.norm(2, dim=1) - 1, zero) ** 2).mean() * GRADIENT_MULTIPLIER
+        else:
+            gradient_penalty = ((gradients.norm(2, dim=1) - 1) ** 2).mean() * GRADIENT_MULTIPLIER
         return gradient_penalty
 
     def _optimize_generator(self, b_size):
