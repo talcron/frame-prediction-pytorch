@@ -1,6 +1,24 @@
 # WGAN Video Generation
 
+The `fvd` module incorporates code from [Google Research](https://github.com/google-research/google-research), 
+licensed under the Apache 2.0 license, the text of which can be found in the LICENSE file. 
+
+The model is implemented in PyTorch and adapted from the [iVGAN](https://github.com/bernhard2202/improved-video-gan) Tensorflow implementation.
+
 ## Setup
+
+Requires:
+
+```
+pytorch
+torchvision
+tensorflow-gpu
+tensorflow-hub
+tensorflow-gan
+comet_ml
+matplotlib
+opencv
+```
 
 ### Environment
 
