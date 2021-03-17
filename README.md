@@ -5,6 +5,9 @@ licensed under the Apache 2.0 license, the text of which can be found in the LIC
 
 The model is implemented in PyTorch and adapted from the [iVGAN](https://github.com/bernhard2202/improved-video-gan) Tensorflow implementation.
 
+![Generated Sample 1](../media/wgan_gp_fake_3_188k.gif?raw=true)
+![Generated Sample 3](../media/zero_centered_fake_1_68k.gif?raw=true)
+
 ## Setup
 
 Requires:
