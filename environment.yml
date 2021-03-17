@@ -2,6 +2,7 @@ name: torch
 channels:
   - default
   - pytorch
+  - powerai
   - comet_ml
   - conda-forge
 dependencies:
@@ -10,6 +11,9 @@ dependencies:
   - nccl
   - pytorch
   - torchvision
+  - tensorflow-gpu
+  - tensorflow-hub
+  - tensorflow-gan
   - comet_ml
   - matplotlib
   - opencv

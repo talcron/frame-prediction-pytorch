@@ -3,13 +3,13 @@ ENV DEBIAN_FRONTEND=noninteractive
 ENV TZ=America/Los_Angeles
 RUN apt-get update
 RUN apt-get upgrade -y
+RUN apt-get update
 
 # Setup basic tools
-RUN apt-get update
 RUN apt-get install -y apt-utils
-RUN apt-get update
 RUN apt-get install -y libsm6 libxext6 libxrender-dev libgl1-mesa-glx vim git wget sudo psmisc locales cmake htop pylint less tmux
-RUN apt-get install -y ffmpeg ssh openssh-server
+RUN apt-get install -y nvidia-cuda-toolkit
+RUN apt-get install -y ffmpeg pciutils ssh openssh-server
 RUN locale-gen en_US.UTF-8
 
 # Setup ssh
@@ -30,8 +30,8 @@ EXPOSE 8888
 ADD environment.yml /tmp/environment.yml
 RUN conda env create --file /tmp/environment.yml
 RUN conda init bash && echo "source activate torch" >> ~/.bashrc
-ENV PATH=${PATH}:/opt/conda/envs/torch/bin
+ENV PATH /opt/conda/envs/torch/bin:$PATH
 
-# Setup CUDA
-RUN ln -s /usr/local/nvidia/bin/nvidia-smi /opt/conda/bin/nvidia-smi
-ENV PATH=${PATH}:/usr/local/nvidia/bin
+# edit tensorflow
+RUN sed -i 's/np.prod(shape)/tf.math.reduce_prod(shape)/' /opt/conda/envs/torch/lib/python3.8/site-packages/tensorflow/python/ops/array_ops.py
+RUN sed -i '47 a import tensorflow as tf' /opt/conda/envs/torch/lib/python3.8/site-packages/tensorflow/python/ops/array_ops.py

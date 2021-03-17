@@ -1,6 +1,24 @@
 # WGAN Video Generation
 
+The `fvd` module incorporates code from [Google Research](https://github.com/google-research/google-research), 
+licensed under the Apache 2.0 license, the text of which can be found in the LICENSE file. 
+
+The model is implemented in PyTorch and adapted from the [iVGAN](https://github.com/bernhard2202/improved-video-gan) Tensorflow implementation.
+
 ## Setup
+
+Requires:
+
+```
+pytorch
+torchvision
+tensorflow-gpu
+tensorflow-hub
+tensorflow-gan
+comet_ml
+matplotlib
+opencv
+```
 
 ### Environment
 
@@ -35,7 +53,8 @@ Our dataloaders support UCF-101, UCF-sports, and tinyvideo.
 We recommend downloading 'Beach only' or 'Golf only'. Regardless of what you download, it should be saved in a tarball
 and saved in a directory named 'tinyvideo'.
 
-Pre-process everything to 64x64 to save space with this huge dataset:
+Pre-process everything to 64x64 to save space with this huge dataset. 
+Use a machine with many processors, or it will take several days to process the entire tarball.
 
 ```
 python scripts/process_tinyvideo.py <path-to-data-tarball>
@@ -86,3 +105,17 @@ The sections below describe the main use cases. For further options, use `python
 Optional:
  
 `--exp-key <comet-ml experiment key>` to continue a CometML experiment.
+
+### Evaluate
+
+Evaluate instead of training.
+
+`--evaluate`
+
+Real data to compare to:
+
+`--index-file root-dir/index.txt`
+
+Checkpoint to load:
+
+`--resume /path/to/checkpoint.model`
