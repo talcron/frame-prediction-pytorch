@@ -1,6 +1,6 @@
 # WGAN Video Generation
 
-## Results
+## Results 
 
 ### WGAN-GP
 
