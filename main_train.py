@@ -170,14 +170,7 @@ def main(args):
     if not args.evaluate:
         train(GAN, exp_name, experiment)
     else:
-        evaluate(GAN)
-
-
-def evaluate(GAN: ImprovedVideoGAN):
-    fvd = []
-    for _ in range(100):
-        fvd.append(GAN.evaluate())
-    print(f"avg FVD: {sum(fvd) / len(fvd)}")
+        GAN.evaluate(100)
 
 
 def train(GAN, exp_name, experiment):

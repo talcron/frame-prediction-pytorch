@@ -189,22 +189,34 @@ class ImprovedVideoGAN(object):
         self._save_batch_as_gif(fake_batch, name=f'final-fake', upload=True)
         self.log_model()
 
-    def evaluate(self) -> float:
+    def evaluate(self, n=1) -> float:
+        """
+        Evaluate the model n-times using FVD. The average is returned.
+        Args:
+            n: number of evaluations
+
+        Returns:
+            Average FVD
+        """
+        assert n > 0
         with tf.Graph().as_default():
-            real = utils.torch_to_tf(self.sample_real()[:16])
-            fake = utils.torch_to_tf(self.sample_fake()[:16])
+            result = []
+            for i in range(n):
+                real = utils.torch_to_tf(self.sample_real()[:16])
+                fake = utils.torch_to_tf(self.sample_fake()[:16])
 
-            result = fvd.calculate_fvd(
-                fvd.create_id3_embedding(fvd.preprocess(real, (224, 224))),  # (224, 224) required to match model input
-                fvd.create_id3_embedding(fvd.preprocess(fake, (224, 224))))
+                result_graph = fvd.calculate_fvd(
+                    fvd.create_id3_embedding(fvd.preprocess(real, (224, 224))),  # (224, 224) required to match model input
+                    fvd.create_id3_embedding(fvd.preprocess(fake, (224, 224))))
 
-            with tf.Session() as sess:
-                sess.run(tf.global_variables_initializer())
-                sess.run(tf.tables_initializer())
-                fvd_score = sess.run(result)
-                print("FVD is: %.2f." % fvd_score)
-        self._experiment.log_metric('fvd', fvd_score)
-        return fvd_score
+                with tf.Session() as sess:
+                    sess.run(tf.global_variables_initializer())
+                    sess.run(tf.tables_initializer())
+                    fvd_score = sess.run(result_graph)
+                    print("FVD is: %.2f." % fvd_score)
+                    result.append(float(fvd_score))
+                self._experiment.log_metric('fvd', fvd_score)
+        return sum(result) / len(result)
 
     def sample_fake(self):
         """
