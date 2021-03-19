@@ -4,7 +4,7 @@
 
 ### WGAN-GP
 
-![Golf WGAN-GP](../media/wgan_gp_fake_3_188k.gif?raw=true)
+![Golf WGAN-GP](https://s3.amazonaws.com/comet.ml/image_8b264e0b617e4360bf4d5b1ba0f0e392-oklkt9X9kURthprfkOVY8NTqg.gif)
 ![Beach WGAN-GP](https://s3.amazonaws.com/comet.ml/image_af55525911124742a08bc13a96869d3c-ij3iJycy6BuDQRrdV4HalsOCB.gif)
 
 ### SN
