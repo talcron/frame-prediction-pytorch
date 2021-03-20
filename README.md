@@ -39,7 +39,7 @@ Due to poor results on the beach dataset, this was not repeated on the golf data
 
 #### 0-GP
 
-![Golf WGAN-0-GP](../media/zero_centered_fake_1_68k.gif?raw=true)
+![Golf WGAN-0-GP](https://s3.amazonaws.com/comet.ml/image_0db4dcb57a4641a5a0f76c5154c590cd-v275bAsor9wQ2M3OsEuWxHwDM.gif)
 ![Beach WGAN-0-GP](https://s3.amazonaws.com/comet.ml/image_10376a166137411d9a90e47507377ac3-sQ3RfWmPwfQ4EkmiunSkPQaNf.gif)
 
 #### One-sided GP
